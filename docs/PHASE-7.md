@@ -1,0 +1,7 @@
+# Phase 7 — calmer engineering workspace
+
+Changed: overview now has a short heading, inline repository/bug form and recent runs. Examples are behind a button; marketing hero and empty metric cards are removed. The existing NewRun form is reused rather than replacing the application. Live Run now has a compact timeline and one dominant tabbed working area (Activity, Diff, Tests, Review, Workflow); the graph loads only in Workflow. Review readiness brings Diff forward with explanation, outcomes and risks beside it. Publication wording says “Approve and open draft PR.” CSS raises authored text to at least 12px, enlarges controls, reduces decoration, and adapts the working area/mobile panels. About copy explains Actions dependency preparation honestly.
+
+Tests added: component tests for hidden-until-selected Workflow and automatic Diff selection; typography lint. Frontend: 23 passed. Local Playwright layout inspection with mocked API data ran at 1440×1000 and 390×844: no visible desktop text below 12px, no mobile horizontal overflow, desktop Start control visible without scrolling. Screenshots inspected locally; subsequent compact-height adjustments are also included. These are browser/UI checks, not real GitHub/Groq evidence.
+
+Verified live providers: none. No hosted Lighthouse or real run is claimed. Phase 9 will record browser smoke tests and measured local Lighthouse scores. Existing source is preserved; no hosting configuration restored or publication performed.

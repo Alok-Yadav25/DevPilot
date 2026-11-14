@@ -208,10 +208,10 @@ def test_eval_counts_failures_in_denominator(client: TestClient) -> None:
     assert result["average_attempts"] == 2
 
 
-def test_restart_stops_active_jobs_instead_of_resuming_writes(client: TestClient) -> None:
+def test_restart_preserves_approval_wait(client: TestClient) -> None:
     reviewed(client)
-    with client.app.state.sessions.begin() as db:
-        db.get(RunRow, "test-run").status = "publishing"
-    client.app.state.service.recover_interrupted()
+    with patch.object(client.app.state.service.executor, "submit") as submit:
+        client.app.state.service.recover_interrupted()
+        submit.assert_not_called()
     run = client.get("/api/runs/test-run", headers=HEADERS).json()
-    assert run["status"] == "failed" and "Inspect GitHub" in run["reason"]
+    assert run["status"] == "ready_for_review" and run["review"]

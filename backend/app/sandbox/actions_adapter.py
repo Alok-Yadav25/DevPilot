@@ -17,6 +17,7 @@ from app.sandbox.github_actions import GitHubActionsRunner
 class ActionsAdapter:
     def __init__(self, runner: GitHubActionsRunner) -> None:
         self.runner = runner
+        self.job_id = ""
         self.loop = asyncio.new_event_loop()
 
     @property
@@ -43,7 +44,12 @@ class ActionsAdapter:
         target = url.removeprefix("https://github.com/").removesuffix(".git")
         diff = run_git(workdir, "diff", "--no-ext-diff", "--no-textconv", "HEAD", "--")
         self.runner.timeout = min(self.runner.timeout, timeout or self.runner.timeout)
-        return self.loop.run_until_complete(self.runner.run_tests(uuid4().hex, target, ref, diff))
+        return self.loop.run_until_complete(
+            self.runner.run_tests(self.job_id or uuid4().hex, target, ref, diff)
+        )
+
+    def cancel_pending(self) -> None:
+        self.loop.run_until_complete(self.runner.cancel_pending())
 
     def close(self) -> None:
         try:

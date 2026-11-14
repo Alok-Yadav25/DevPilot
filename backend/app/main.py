@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import fcntl
 import logging
 import threading
 import time
@@ -39,14 +38,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         validate_runner_settings(config)
         config.work_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        lease = (config.work_root / ".api-worker.lock").open("a")
-        try:
-            fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            lease.close()
-            raise RuntimeError(
-                "Run one API worker per sandbox host; another worker owns the lease."
-            ) from None
         engine = make_engine(config)
         sessions = make_sessions(engine)
         app.state.settings, app.state.engine, app.state.sessions = config, engine, sessions
@@ -56,8 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         async def reap() -> None:
             while True:
-                await asyncio.sleep(300)
+                await asyncio.sleep(10)
+                await asyncio.to_thread(service.recover_interrupted)
                 await asyncio.to_thread(cleanup_stale, config.work_root)
+                with contextlib.suppress(Exception):
+                    await asyncio.to_thread(service.cleanup_retained_jobs)
 
         reaper = asyncio.create_task(reap())
         try:
@@ -78,8 +72,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await reaper
             service.shutdown()
             engine.dispose()
-            fcntl.flock(lease, fcntl.LOCK_UN)
-            lease.close()
 
     app = FastAPI(title="DevPilot", version="1.0.0", lifespan=lifespan)
 

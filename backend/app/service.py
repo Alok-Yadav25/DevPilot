@@ -1,19 +1,17 @@
 """A bounded single-process worker with durable run/event records.
 
-Use one Uvicorn worker. A process lock prevents two app processes sharing the DB
-from executing against the same local sandbox host. Restarted jobs are failed
-explicitly; they are never silently resumed or published.
+Database leases prevent duplicate ownership; checkpoints contain no local paths.
 """
 
 import hashlib
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.graph import Agent
@@ -21,7 +19,7 @@ from app.agent.llm import GroqClient
 from app.agent.state import Event, RunReport
 from app.config import Settings
 from app.db.models import AttemptRow, RunEventRow, RunRow
-from app.errors import DevPilotError
+from app.errors import DevPilotError, RunCancelled, WorkerPaused
 from app.github.client import GitHubClient
 from app.github.pr import publish_reviewed_patch
 from app.sandbox.factory import make_runner
@@ -88,25 +86,150 @@ class RunService:
         self.executor = ThreadPoolExecutor(
             max_workers=settings.max_concurrent_runs, thread_name_prefix="devpilot"
         )
+        self.worker_id = uuid4().hex
+        self.stopping = threading.Event()
         self.lock = threading.RLock()
         self.cancellations: dict[str, threading.Event] = {}
         self.limits: dict[str, dict[str, str]] = {"groq": {}, "github": {}}
 
-    def recover_interrupted(self) -> None:
-        with self.sessions.begin() as session:
-            for row in session.scalars(select(RunRow).where(RunRow.status.in_(ACTIVE))):
-                was_publishing = row.status == "publishing"
-                row.status = "failed"
-                row.finished_at = datetime.now(UTC)
-                row.report = {
-                    **row.report,
-                    "reason": (
-                        "Worker restarted during publication. Inspect GitHub for the run branch/PR "
-                        "before taking any further action."
-                        if was_publishing
-                        else "Worker restarted. This run was stopped; start a new run to retry."
+    def claim(self, run_id: str) -> bool:
+        with self.sessions.begin() as db:
+            if db.bind is not None and db.bind.dialect.name == "postgresql":
+                db.execute(text("SELECT pg_advisory_xact_lock(73486021)"))
+            else:
+                db.execute(text("BEGIN IMMEDIATE"))
+            current = (
+                db.scalar(
+                    select(func.count())
+                    .select_from(RunRow)
+                    .where(RunRow.status.in_(ACTIVE), RunRow.lease_expires_at > datetime.now(UTC))
+                )
+                or 0
+            )
+            if current >= self.settings.max_concurrent_runs:
+                return False
+            result = db.execute(
+                update(RunRow)
+                .where(
+                    RunRow.id == run_id,
+                    RunRow.status.in_(ACTIVE),
+                    or_(
+                        RunRow.lease_expires_at.is_(None),
+                        RunRow.lease_expires_at < datetime.now(UTC),
                     ),
-                }
+                )
+                .values(
+                    worker_id=self.worker_id,
+                    lease_expires_at=datetime.now(UTC) + timedelta(seconds=45),
+                )
+            )
+            return bool(result.rowcount)  # type: ignore[attr-defined]
+
+    def recover_interrupted(self) -> None:
+        if self.stopping.is_set():
+            return
+        with self.sessions() as db:
+            pending = list(
+                db.scalars(
+                    select(RunRow.id)
+                    .where(
+                        RunRow.status.in_(ACTIVE),
+                        or_(
+                            RunRow.lease_expires_at.is_(None),
+                            RunRow.lease_expires_at < datetime.now(UTC),
+                        ),
+                    )
+                    .order_by(RunRow.created_at)
+                )
+            )
+        for run_id in pending:
+            with self.sessions.begin() as db:
+                row = db.get(RunRow, run_id)
+                if row and row.status != "publishing" and row.checkpoint.get("node") == "review":
+                    row.status = "ready_for_review"
+                    row.report = row.checkpoint["report"]
+                    row.final_diff = row.report["final_diff"]
+                    row.worker_id, row.lease_expires_at = None, None
+                    continue
+            with self.lock:
+                if run_id in self.cancellations:
+                    continue
+                cancel = threading.Event()
+                self.cancellations[run_id] = cancel
+            self.executor.submit(self.execute, run_id, cancel)
+
+    def heartbeat(self, run_id: str, cancel: threading.Event, done: threading.Event) -> None:
+        while not done.wait(10):
+            try:
+                with self.sessions.begin() as db:
+                    row = db.get(RunRow, run_id)
+                    if not row or row.worker_id != self.worker_id:
+                        self.stopping.set()
+                        return
+                    if row.cancel_requested:
+                        cancel.set()
+                    row.lease_expires_at = datetime.now(UTC) + timedelta(seconds=45)
+            except Exception:
+                self.stopping.set()  # Pause on loss of lease storage; do not cancel a remote job.
+                return
+
+    def checkpoint(self, run_id: str, node: str, state: dict, report: RunReport) -> None:
+        data = {
+            k: v.model_dump(mode="json") if hasattr(v, "model_dump") else v
+            for k, v in state.items()
+            if k != "workdir"
+        }
+        safe = json.loads(
+            self.redact(
+                json.dumps({"node": node, "state": data, "report": report.model_dump(mode="json")})
+            )
+        )
+        with self.sessions.begin() as db:
+            row = db.scalar(select(RunRow).where(RunRow.id == run_id).with_for_update())
+            if not row or row.worker_id != self.worker_id:
+                raise WorkerPaused("Worker lease lost.")
+            if row.cancel_requested:
+                raise RunCancelled("Run cancelled.")
+            row.checkpoint = safe
+            row.report = safe["report"]
+            row.final_diff = report.final_diff
+            row.attempts = len(report.attempts)
+
+    def save_job(self, run_id: str, job_id: str, job: dict) -> None:
+        with self.sessions.begin() as db:
+            row = db.scalar(select(RunRow).where(RunRow.id == run_id).with_for_update())
+            if not row or row.worker_id != self.worker_id:
+                raise WorkerPaused("Worker no longer owns this run.")
+            row.remote_jobs = {**row.remote_jobs, job_id: job}
+
+    def cleanup_retained_jobs(self) -> None:
+        if self.settings.runner_mode != "github_actions":
+            return
+        cutoff = datetime.now(UTC) - timedelta(seconds=self.settings.retention_seconds)
+        with self.sessions() as db:
+            rows = [
+                (r.id, r.remote_jobs)
+                for r in db.scalars(
+                    select(RunRow).where(
+                        RunRow.finished_at < cutoff,
+                        ~RunRow.status.in_(ACTIVE | {"ready_for_review"}),
+                    )
+                )
+                if any(j.get("branch_created") for j in r.remote_jobs.values())
+            ]
+        for run_id, jobs in rows:
+            runner = make_runner(self.settings)
+            try:
+                runner.runner.jobs = jobs  # type: ignore[attr-defined]
+                runner.cancel_pending()  # type: ignore[attr-defined]
+                with self.sessions.begin() as db:
+                    row = db.get(RunRow, run_id)
+                    if row:
+                        row.remote_jobs = {
+                            key: {**job, "branch_created": False} for key, job in jobs.items()
+                        }
+            finally:
+                runner.close()
 
     def add_event(self, run_id: str, event: Event) -> None:
         safe = Event.model_validate_json(self.redact(event.model_dump_json()))
@@ -171,13 +294,28 @@ class RunService:
     def execute(self, run_id: str, cancel: threading.Event) -> None:
         llm = None
         sandbox = None
+        heartbeat_done = threading.Event()
+        owned = False
         try:
+            owned = self.claim(run_id)
+            if not owned:
+                return
+            threading.Thread(
+                target=self.heartbeat, args=(run_id, cancel, heartbeat_done), daemon=True
+            ).start()
             with self.sessions.begin() as session:
                 row = session.get(RunRow, run_id)
                 if row is None:
                     return
                 repo, issue, expected = row.repo_url, row.issue_text, row.expected_failures
-                row.status = "running"
+                resume, jobs = row.checkpoint, row.remote_jobs
+                if row.cancel_requested:
+                    cancel.set()
+                publishing = row.status == "publishing"
+                row.status = "publishing" if publishing else "running"
+            if publishing:
+                self.publish(run_id)
+                return
             sandbox = make_runner(
                 self.settings,
                 lambda message: self.add_event(
@@ -185,6 +323,14 @@ class RunService:
                 ),
                 cancel,
             )
+            if hasattr(sandbox, "runner"):
+                sandbox.runner.pause_requested = self.stopping
+                sandbox.runner.jobs = jobs
+                sandbox.runner.on_job = lambda job_id, job: self.save_job(run_id, job_id, job)
+            if cancel.is_set():
+                if hasattr(sandbox, "cancel_pending"):
+                    sandbox.cancel_pending()
+                raise RunCancelled("Cancelled by the operator; remote cleanup requested.")
             sandbox.preflight()
             key = self.settings.groq_api_key.get_secret_value()
             if not key:
@@ -210,12 +356,16 @@ class RunService:
                 on_event=lambda event: self.add_event(run_id, event),
                 cancel=cancel,
                 on_review=snapshot,
+                on_checkpoint=lambda node, state, report: self.checkpoint(
+                    run_id, node, state, report
+                ),
             )
+            agent.pause_requested = self.stopping
             agent.report.id = run_id
-            report = agent.run(repo, issue, expected)
+            report = agent.run(repo, issue, expected, resume=resume or None)
             with self.sessions.begin() as session:
                 row = session.get(RunRow, run_id)
-                if row:
+                if row and row.worker_id == self.worker_id:
                     row.report = json.loads(self.redact(report.model_dump_json()))
                     row.final_diff = report.final_diff
                     row.status = report.status
@@ -242,6 +392,8 @@ class RunService:
                         message="Waiting for human review. No branch has been pushed.",
                     ),
                 )
+        except WorkerPaused:
+            pass  # Leave status and remote jobs intact for recovery.
         except Exception as exc:
             reason = (
                 self.redact(str(exc))
@@ -250,12 +402,20 @@ class RunService:
             )
             with self.sessions.begin() as session:
                 row = session.get(RunRow, run_id)
-                if row:
-                    row.status = "failed"
+                if row and row.worker_id == self.worker_id:
+                    row.status = "cancelled" if cancel.is_set() else "failed"
                     row.finished_at = datetime.now(UTC)
                     row.report = {**row.report, "reason": reason}
             self.add_event(run_id, Event(node="worker", type="error", message=reason))
         finally:
+            heartbeat_done.set()
+            if owned:
+                with self.sessions.begin() as db:
+                    db.execute(
+                        update(RunRow)
+                        .where(RunRow.id == run_id, RunRow.worker_id == self.worker_id)
+                        .values(worker_id=None, lease_expires_at=None)
+                    )
             if sandbox:
                 self.limits["github"] = getattr(sandbox, "limits", {})
                 sandbox.close()
@@ -273,9 +433,13 @@ class RunService:
             if action == "cancel":
                 if row.status not in {"queued", "running"}:
                     raise DevPilotError("This run is no longer cancellable.")
+                row.cancel_requested = True
                 cancel = self.cancellations.get(run_id)
                 if cancel:
                     cancel.set()
+                if row.status == "queued":
+                    row.status = "cancelled"
+                    row.finished_at = datetime.now(UTC)
                 return
             if row.status != "ready_for_review":
                 raise DevPilotError("Only a finished, reviewed patch can be approved or rejected.")
@@ -310,7 +474,7 @@ class RunService:
                 row = session.get(RunRow, run_id)
                 should_publish = bool(row and row.status == "publishing")
             if should_publish:
-                self.executor.submit(self.publish, run_id)
+                self.recover_interrupted()
 
     def publish(self, run_id: str) -> None:
         github = GitHubClient(self.settings.github_token.get_secret_value())
@@ -369,6 +533,5 @@ class RunService:
             github.close()
 
     def shutdown(self) -> None:
-        for cancellation in self.cancellations.values():
-            cancellation.set()
+        self.stopping.set()
         self.executor.shutdown(wait=False, cancel_futures=True)

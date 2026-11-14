@@ -58,6 +58,10 @@ def serialize_run(row: RunRow, session: Session, detail: bool = True) -> dict[st
         dry_run=row.dry_run,
         mode="live",
         approved=bool(row.approved_diff_sha256),
+        approval_record={
+            "diff_sha256": row.approved_diff_sha256,
+            "approved": bool(row.approved_diff_sha256),
+        },
     )
     for key, default in {
         "attempts": [],

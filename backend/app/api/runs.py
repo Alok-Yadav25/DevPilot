@@ -1,6 +1,7 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
@@ -66,6 +67,21 @@ def get_run(run_id: str, db: DB) -> dict:
     if row is None:
         raise HTTPException(404, "Run not found on this worker.")
     return serialize_run(row, db)
+
+
+@router.get("/{run_id}/report")
+def report(run_id: str, db: DB) -> JSONResponse:
+    row = db.get(RunRow, run_id)
+    if row is None:
+        raise HTTPException(404, "Run not found.")
+    record = serialize_run(row, db)
+    decisions = [e for e in record["events"] if e["node"] == "approval" and e["type"] == "end"]
+    record["approval_record"]["events"] = decisions
+    safe_id = re.sub(r"[^A-Za-z0-9-]", "_", run_id)
+    return JSONResponse(
+        {"schema_version": 1, **record},
+        headers={"Content-Disposition": f'attachment; filename="devpilot-{safe_id}.json"'},
+    )
 
 
 def decide(run_id: str, action: str, request: Request, digest: str = "") -> dict:

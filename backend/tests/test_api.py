@@ -288,3 +288,17 @@ def test_replay_requires_remote_evidence_and_never_calls_providers(client: TestC
         assert len(rows) == 1 and rows[0]["label"] == "Recorded real run"
         replay = client.get("/api/replays/test-run").json()
         assert replay["mode"] == "replay" and replay["review"] and replay["test_evidence"]
+
+
+def test_download_report_includes_evidence_and_approval(client: TestClient):
+    digest = reviewed(client)
+    client.post("/api/runs/test-run/approve", headers=HEADERS, json={"diff_sha256": digest})
+    assert client.get("/api/runs/test-run/report").status_code == 401
+    response = client.get("/api/runs/test-run/report", headers=HEADERS)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["schema_version"] == 1 and data["commit_sha"] == "a" * 40
+    assert data["approval_record"]["diff_sha256"] == digest
+    assert data["approval_record"]["events"][-1]["message"] == "Operator chose approve."
+    assert "source_snapshot" not in data and TOKEN not in response.text
+    assert "attachment" in response.headers["content-disposition"]

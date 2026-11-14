@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     sandbox_github_token: SecretStr = SecretStr("")
     sandbox_repo: str = ""
     sandbox_default_branch: str = "main"
+    allowed_target_owner: str = ""
     allowed_target_repos: str = ""
     runner_mode: Literal["github_actions", "docker", "replay"] = "github_actions"
     max_repo_mb: int = Field(default=50, ge=1, le=50)

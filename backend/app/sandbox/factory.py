@@ -38,7 +38,9 @@ def validate_runner_settings(settings: Settings) -> None:
             "SANDBOX_REPO": settings.sandbox_repo,
             "SANDBOX_GITHUB_TOKEN": settings.sandbox_github_token.get_secret_value(),
             "TARGET_GITHUB_TOKEN": settings.target_github_token.get_secret_value(),
-            "ALLOWED_TARGET_REPOS": settings.allowed_target_repos,
+            "ALLOWED_TARGET_REPOS or ALLOWED_TARGET_OWNER": (
+                settings.allowed_target_repos or settings.allowed_target_owner
+            ),
         }
         missing = [name for name, value in required.items() if not value.strip()]
         if missing:
@@ -69,6 +71,7 @@ def make_runner(
                 timeout=settings.actions_timeout_seconds,
                 default_branch=settings.sandbox_default_branch,
                 cancel=cancel,
+                allowed_owner=settings.allowed_target_owner,
             )
         )
     if settings.runner_mode == "docker":

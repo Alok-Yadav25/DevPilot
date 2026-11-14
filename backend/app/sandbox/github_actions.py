@@ -40,10 +40,14 @@ class GitHubActionsRunner:
         default_branch: str = "main",
         cancel: threading.Event | None = None,
         client: httpx.AsyncClient | None = None,
+        allowed_owner: str = "",
     ) -> None:
         self.repo = repository(sandbox_repo)
         self.allowed = {repository(r).lower() for r in allowed}
-        if not token or not self.allowed:
+        self.allowed_owner = allowed_owner.lower()
+        if self.allowed_owner and not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,38}", self.allowed_owner):
+            raise DevPilotError("Invalid ALLOWED_TARGET_OWNER.")
+        if not token or not (self.allowed or self.allowed_owner):
             raise DevPilotError("Set SANDBOX_GITHUB_TOKEN and ALLOWED_TARGET_REPOS first.")
         self.redact, self.waiting, self.timeout = redactor, waiting, timeout
         self.default_branch = default_branch
@@ -135,7 +139,10 @@ class GitHubActionsRunner:
 
     async def run_tests(self, job_id: str, target_repo: str, ref: str, diff: str) -> TestResult:
         repository(target_repo)
-        if target_repo.lower() not in self.allowed:
+        if (
+            target_repo.lower() not in self.allowed
+            and target_repo.split("/")[0].lower() != self.allowed_owner
+        ):
             raise DevPilotError("Repository is not in ALLOWED_TARGET_REPOS.")
         if not re.fullmatch(r"[a-f0-9]{40}", ref):
             raise DevPilotError("Sandbox runs require the immutable cloned commit SHA.")

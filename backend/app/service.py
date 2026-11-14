@@ -22,6 +22,7 @@ from app.db.models import AttemptRow, RunEventRow, RunRow
 from app.errors import DevPilotError, RunCancelled, WorkerPaused
 from app.github.client import GitHubClient
 from app.github.pr import publish_reviewed_patch
+from app.policy import RunPolicy
 from app.sandbox.factory import make_runner
 from app.security import Redactor
 
@@ -269,6 +270,7 @@ class RunService:
                 row.report = report
 
     def create(self, repo: str, issue: str, dry: bool, expected: list[str]) -> str:
+        repo = RunPolicy(self.settings).readiness(repo, issue)
         with self.lock, self.sessions.begin() as session:
             active = len(list(session.scalars(select(RunRow.id).where(RunRow.status.in_(ACTIVE)))))
             if active >= self.settings.max_concurrent_runs + self.settings.max_queued_runs:
@@ -316,6 +318,7 @@ class RunService:
             if publishing:
                 self.publish(run_id)
                 return
+            RunPolicy(self.settings).remote(repo, issue)
             sandbox = make_runner(
                 self.settings,
                 lambda message: self.add_event(
@@ -454,9 +457,9 @@ class RunService:
                 actual = hashlib.sha256(row.final_diff.encode()).hexdigest()
                 if not row.final_diff or not __import__("hmac").compare_digest(actual, digest):
                     raise DevPilotError("The reviewed diff changed. Reload it before approving.")
-                if not row.dry_run and not self.settings.github_token.get_secret_value():
+                if not row.dry_run and not self.settings.target_github_token.get_secret_value():
                     raise DevPilotError(
-                        "Set a repository-scoped GITHUB_TOKEN on the worker before approval."
+                        "Set a repository-scoped TARGET_GITHUB_TOKEN on the worker before approval."
                     )
                 row.approved_diff_sha256 = digest
                 row.status = "completed" if row.dry_run else "publishing"
@@ -477,7 +480,7 @@ class RunService:
                 self.recover_interrupted()
 
     def publish(self, run_id: str) -> None:
-        github = GitHubClient(self.settings.github_token.get_secret_value())
+        github = GitHubClient(self.settings.target_github_token.get_secret_value())
         try:
             with self.sessions() as session:
                 row = session.get(RunRow, run_id)

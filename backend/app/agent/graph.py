@@ -27,6 +27,7 @@ from app.errors import (
     WorkerPaused,
 )
 from app.github.clone import Cloner, cleanup_stale, validate_repo_url, workspace
+from app.policy import RunPolicy
 from app.security import Redactor
 
 
@@ -55,6 +56,8 @@ class Agent:
         self.pause_requested = threading.Event()
         self.on_review = on_review
         self.on_checkpoint = on_checkpoint
+        self.enforce_policy = cloner is None or type(cloner) is Cloner
+        self.policy = RunPolicy(settings)
         self.cloner = cloner or Cloner(
             settings.max_repo_bytes,
             settings.max_repo_files,
@@ -164,6 +167,8 @@ class Agent:
         self.report.issue_text = self.redact(issue)
         if not issue.strip() or len(issue) > 16000:
             raise DevPilotError("Provide a bug description between 1 and 16,000 characters.")
+        if self.enforce_policy:
+            self.policy.remote(repo_url, issue)
         self.expected_failures = set(expected_failures or [])
         self.deadline = time.monotonic() + self.settings.run_timeout_seconds
         stopped = threading.Event()
@@ -198,6 +203,8 @@ class Agent:
                     self.remaining()
                     self.cloner.clone_pinned(repo_url, workdir, self.report.commit_sha)
                     check_python_project(workdir)
+                    if self.enforce_policy:
+                        self.policy.checkout(workdir)
                     if state.get("patch", "").startswith("--- a/"):
                         run_git(workdir, "apply", "--check", "-", input_text=state["patch"])
                         run_git(workdir, "apply", "-", input_text=state["patch"])
@@ -252,6 +259,8 @@ class Agent:
         self.cloner.timeout = min(self.cloner.timeout, self.remaining())
         self.report.commit_sha = self.cloner.clone(state["repo_url"], Path(state["workdir"]))
         check_python_project(Path(state["workdir"]))
+        if self.enforce_policy:
+            self.policy.checkout(Path(state["workdir"]))
         return {}
 
     def run_tests(self, state: AgentState) -> TestResult:
@@ -348,6 +357,9 @@ class Agent:
         )
 
     def patch(self, state: AgentState) -> dict[str, Any]:
+        if self.enforce_policy:
+            self.policy.remote(state["repo_url"], state["issue_text"], state.get("attempts", 0))
+            self.policy.checkout(Path(state["workdir"]))
         reset_to_baseline(Path(state["workdir"]))
         number = state.get("attempts", 0) + 1
         raw = self.llm.complete(

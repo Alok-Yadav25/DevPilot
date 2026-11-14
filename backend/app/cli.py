@@ -13,7 +13,7 @@ from app.agent.state import Event, RunReport
 from app.config import Settings
 from app.errors import DevPilotError
 from app.github.clone import cleanup_stale, validate_repo_url
-from app.sandbox.actions_adapter import require_allowed_target
+from app.policy import RunPolicy
 from app.sandbox.factory import Runner, make_runner
 from app.security import Redactor
 
@@ -91,8 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         # Validate input before spending any API budget.
         if args.command == "run":
             validate_repo_url(args.repo)
-            require_allowed_target(args.repo, settings.allowed_target_repos)
             issue_text = args.issue_file.read_text() if args.issue_file else args.issue
+            RunPolicy(settings).request(args.repo, issue_text)
             if not issue_text.strip() or len(issue_text) > 16000:
                 raise DevPilotError("The issue must contain 1–16,000 characters.")
         if args.command != "models":

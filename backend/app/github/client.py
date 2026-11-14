@@ -15,7 +15,7 @@ class GitHubClient:
             timeout=20,
             follow_redirects=False,
             headers={
-                "Authorization": f"Bearer {token}",
+                **({"Authorization": f"Bearer {token}"} if token else {}),
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2026-03-10",
             },

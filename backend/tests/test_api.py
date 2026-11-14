@@ -215,3 +215,24 @@ def test_restart_preserves_approval_wait(client: TestClient) -> None:
         submit.assert_not_called()
     run = client.get("/api/runs/test-run", headers=HEADERS).json()
     assert run["status"] == "ready_for_review" and run["review"]
+
+
+def test_publication_uses_only_target_token(client: TestClient):
+    from pydantic import SecretStr
+
+    digest = reviewed(client, dry=False)
+    service = client.app.state.service
+    service.settings.target_github_token = SecretStr("fake-target-scoped")
+    service.settings.sandbox_github_token = SecretStr("fake-sandbox-scoped")
+    with client.app.state.sessions.begin() as db:
+        row = db.get(RunRow, "test-run")
+        row.status, row.approved_diff_sha256 = "publishing", digest
+    with (
+        patch("app.service.GitHubClient") as github,
+        patch(
+            "app.service.publish_reviewed_patch",
+            return_value="https://github.com/owner/repo/pull/1",
+        ),
+    ):
+        service.publish("test-run")
+        github.assert_called_once_with("fake-target-scoped")

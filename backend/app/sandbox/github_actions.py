@@ -243,7 +243,6 @@ class GitHubActionsRunner:
                     f"{root}/actions/workflows/run-tests.yml/dispatches",
                     {
                         "ref": branch,
-                        "return_run_details": True,
                         "inputs": {"job_id": job_id, "target_repo": target_repo, "target_ref": ref},
                     },
                 )

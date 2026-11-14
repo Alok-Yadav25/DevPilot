@@ -59,7 +59,7 @@ jobs:
 
 
           def main() -> None:
-              payload = json.loads(sys.stdin.buffer.read(64000))
+              payload = json.loads(sys.stdin.buffer.readline(64000))
               target, ref = payload["target_repo"], payload["target_ref"]
               if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*", target):
                   raise ValueError("invalid repository")
@@ -146,6 +146,11 @@ jobs:
 
                           if "build-system" in tomllib.loads(Path("pyproject.toml").read_text()):
                               subprocess.run([*pip, "."], check=True, stdout=log, stderr=log)
+                  # Dependency preparation needs public downloads. The trusted host disconnects
+                  # every container network before allowing any pytest import or test hook.
+                  print("DEVPILOT_TEST_READY", flush=True)
+                  if sys.stdin.buffer.readline(64) != b"continue\n":
+                      raise RuntimeError("Network isolation was not acknowledged by the host")
                   sys.path[:0] = ["/tmp/deps", "/work/repo", "/work/repo/src"]
                   import pytest
 
@@ -229,9 +234,19 @@ jobs:
           try:
               with tempfile.TemporaryFile() as captured:
                   process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=captured, stderr=captured)
-                  process.stdin.write(payload.encode()); process.stdin.close()
+                  process.stdin.write((payload + "\n").encode()); process.stdin.flush()
                   deadline = time.monotonic() + 300
+                  isolated = False
                   while process.poll() is None:
+                      captured.seek(0)
+                      if not isolated and b'DEVPILOT_TEST_READY\n' in captured.read(1000000):
+                          subprocess.run(['docker', 'network', 'disconnect', 'bridge', name], check=True, capture_output=True)
+                          networks = subprocess.check_output(['docker', 'inspect', '--format', '{{json .NetworkSettings.Networks}}', name], text=True).strip()
+                          if networks != '{}':
+                              raise RuntimeError('Container still has a network attached')
+                          process.stdin.write(b'continue\n'); process.stdin.close()
+                          isolated = True
+                          deadline = time.monotonic() + 120
                       if time.monotonic() >= deadline or os.fstat(captured.fileno()).st_size > 1000000:
                           subprocess.run(['docker', 'kill', name], capture_output=True)
                           process.kill(); process.wait()
@@ -240,7 +255,7 @@ jobs:
                       time.sleep(.2)
                   else:
                       captured.seek(0)
-                      raw = captured.read(1000000).decode(errors='replace')
+                      raw = captured.read(1000000).decode(errors='replace').split('DEVPILOT_TEST_READY\n')[-1]
                       try:
                           data = json.loads(raw)
                       except ValueError:

@@ -48,7 +48,7 @@ def test_dispatch_empty_baseline_and_cleanup() -> None:
         if "/git/ref/" in p:
             return httpx.Response(200, json={"object": {"sha": "a" * 40}})
         if p.endswith("dispatches"):
-            assert json.loads(request.content)["return_run_details"] is True
+            assert "return_run_details" not in json.loads(request.content)
             return httpx.Response(200, json={"workflow_run_id": 42})
         if p.endswith("/runs/42"):
             return httpx.Response(200, json={"status": "completed", "conclusion": "success"})
@@ -266,3 +266,22 @@ def test_restart_reattaches_to_remote_job_without_dispatch():
 
     asyncio.run(exercise())
     assert not any(c.method in {"POST", "PUT"} for c in calls)
+
+
+def test_generated_workflow_disconnects_before_pytest_and_is_reproducible():
+    import subprocess
+    from pathlib import Path
+
+    path = Path("sandbox-repo/.github/workflows/run-tests.yml")
+    before = path.read_text()
+    subprocess.run(
+        [__import__("sys").executable, "scripts/build_actions_workflow.py"],
+        check=True,
+        capture_output=True,
+    )
+    assert path.read_text() == before
+    assert "'network', 'disconnect', 'bridge'" in before
+    assert "networks != '{}'" in before
+    assert "deadline = time.monotonic() + 120" in before
+    assert before.index('print("DEVPILOT_TEST_READY"') < before.index("import pytest")
+    assert 'if sys.stdin.buffer.readline(64) != b"continue' in before

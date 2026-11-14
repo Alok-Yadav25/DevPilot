@@ -52,6 +52,7 @@ def test_api_redacts_validation_http_and_unhandled_errors(tmp_path: Path) -> Non
     key = fake_tokens()[0]
     config = Settings(
         _env_file=None,
+        runner_mode="replay",
         groq_api_key=SecretStr(key),
         database_url=SecretStr(f"sqlite:///{tmp_path}/test.db"),
         database_auto_create=True,

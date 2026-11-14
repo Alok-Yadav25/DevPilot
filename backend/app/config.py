@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    app_env: Literal["local", "production"] = "production"
+    max_queued_runs: int = Field(default=20, ge=1, le=100)
     groq_api_key: SecretStr = SecretStr("")
     groq_model: str = "openai/gpt-oss-120b"
     github_token: SecretStr = SecretStr("")

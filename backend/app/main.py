@@ -25,6 +25,7 @@ from app.db.models import Base
 from app.db.session import make_engine, make_sessions
 from app.github.clone import cleanup_stale
 from app.logging import configure_redacted_logging
+from app.sandbox.factory import validate_runner_settings
 from app.security import Redactor
 from app.service import RunService
 
@@ -36,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        validate_runner_settings(config)
         config.work_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         lease = (config.work_root / ".api-worker.lock").open("a")
         try:

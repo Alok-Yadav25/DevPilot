@@ -2,8 +2,9 @@
 
 import threading
 from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.agent.state import TestResult
 from app.config import Settings
@@ -19,6 +20,13 @@ class Runner(Protocol):
 
 class ReplayRunner:
     """Replays are loaded from durable records; never synthesize test success."""
+
+    def play(self, record: dict[str, Any]) -> dict[str, Any]:
+        if not record.get("test_evidence"):
+            raise DevPilotError(
+                "This record has no remote test evidence. It cannot be labelled a real recording."
+            )
+        return {**deepcopy(record), "mode": "replay"}
 
     def preflight(self) -> None:
         pass

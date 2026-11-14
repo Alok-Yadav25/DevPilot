@@ -247,6 +247,7 @@ def test_lightweight_health_does_not_call_runner(client: TestClient):
 def test_retried_run_request_returns_one_durable_job(client: TestClient):
     service = client.app.state.service
     service.settings.groq_api_key = SecretStr("fake-groq-key-for-controller-test")
+    service.settings.runner_mode = "github_actions"
     payload = {"repo_url": "https://github.com/owner/repo", "issue_text": "Repair this bug"}
     headers = {**HEADERS, "Idempotency-Key": "a" * 32}
     with (
@@ -262,3 +263,28 @@ def test_retried_run_request_returns_one_durable_job(client: TestClient):
             "/api/runs", headers=headers, json={**payload, "issue_text": "A different bug"}
         )
         assert different.status_code == 409
+
+
+def test_replay_requires_remote_evidence_and_never_calls_providers(client: TestClient):
+    from app.db.models import ReplayRunRow
+
+    reviewed(client)
+    service = client.app.state.service
+    service.settings.runner_mode = "github_actions"
+    service.record_replay("test-run")
+    with service.sessions() as db:
+        assert db.get(ReplayRunRow, "test-run") is None
+    with service.sessions.begin() as db:
+        db.get(RunRow, "test-run").remote_jobs = {
+            "fixture-test": {"run_id": 42, "sandbox_repo": "fixture/sandbox", "status": "completed"}
+        }
+    service.record_replay("test-run")
+    service.record_replay("test-run")
+    with (
+        patch("app.service.GroqClient", side_effect=AssertionError("no model")),
+        patch("app.service.make_runner", side_effect=AssertionError("no external runner")),
+    ):
+        rows = client.get("/api/replays").json()
+        assert len(rows) == 1 and rows[0]["label"] == "Recorded real run"
+        replay = client.get("/api/replays/test-run").json()
+        assert replay["mode"] == "replay" and replay["review"] and replay["test_evidence"]

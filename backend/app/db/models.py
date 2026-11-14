@@ -79,3 +79,12 @@ class EvalResultRow(Base):
     attempts: Mapped[int] = mapped_column(Integer)
     duration_seconds: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ReplayRunRow(Base):
+    __tablename__ = "replay_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), unique=True)
+    repo_url: Mapped[str] = mapped_column(String(500))
+    record: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

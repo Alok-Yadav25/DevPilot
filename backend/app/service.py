@@ -16,9 +16,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.graph import Agent
 from app.agent.llm import GroqClient
-from app.agent.state import Event, RunReport
+from app.agent.state import Event, RunReport, TestResult
 from app.config import Settings
-from app.db.models import AttemptRow, RunEventRow, RunRow
+from app.db.models import AttemptRow, ReplayRunRow, RunEventRow, RunRow
 from app.errors import DevPilotError, RunCancelled, WorkerPaused
 from app.github.client import GitHubClient
 from app.github.pr import publish_reviewed_patch
@@ -57,6 +57,7 @@ def serialize_run(row: RunRow, session: Session, detail: bool = True) -> dict[st
         pr_url=row.pr_url,
         dry_run=row.dry_run,
         mode="live",
+        approved=bool(row.approved_diff_sha256),
     )
     for key, default in {
         "attempts": [],
@@ -67,6 +68,16 @@ def serialize_run(row: RunRow, session: Session, detail: bool = True) -> dict[st
         "relevant_files": [],
     }.items():
         report.setdefault(key, default)
+    report["test_evidence"] = [
+        {
+            "job_id": job_id,
+            "run_id": job["run_id"],
+            "status": job.get("status", "unknown"),
+            "url": f"https://github.com/{job['sandbox_repo']}/actions/runs/{job['run_id']}",
+        }
+        for job_id, job in (row.remote_jobs or {}).items()
+        if job.get("run_id") and job.get("sandbox_repo")
+    ]
     if detail:
         report["events"] = [
             serialize_event(e)
@@ -272,6 +283,10 @@ class RunService:
     def create(
         self, repo: str, issue: str, dry: bool, expected: list[str], request_id: str = ""
     ) -> str:
+        if self.settings.runner_mode == "replay":
+            raise DevPilotError(
+                "Live runs are disabled in replay mode. Choose a recording or sample."
+            )
         if request_id:
             with self.sessions() as db:
                 previous = db.get(RunRow, request_id)
@@ -411,6 +426,7 @@ class RunService:
                         message="Waiting for human review. No branch has been pushed.",
                     ),
                 )
+                self.record_replay(run_id)
         except WorkerPaused:
             pass  # Leave status and remote jobs intact for recovery.
         except Exception as exc:
@@ -442,6 +458,36 @@ class RunService:
                 llm.close()
             with self.lock:
                 self.cancellations.pop(run_id, None)
+
+    def record_replay(self, run_id: str) -> None:
+        if self.settings.runner_mode != "github_actions":
+            return
+        with self.sessions.begin() as db:
+            row = db.get(RunRow, run_id)
+            if (
+                not row
+                or row.status != "ready_for_review"
+                or db.get(ReplayRunRow, run_id) is not None
+            ):
+                return
+            record = serialize_run(row, db)
+            attempts = record.get("attempts", [])
+            if (
+                not record.get("test_evidence")
+                or not record.get("review")
+                or not attempts
+                or not attempts[-1].get("test_result")
+                or not TestResult.model_validate(attempts[-1]["test_result"]).passed
+            ):
+                return
+            db.add(
+                ReplayRunRow(
+                    id=run_id,
+                    run_id=run_id,
+                    repo_url=row.repo_url,
+                    record=json.loads(self.redact(json.dumps(record))),
+                )
+            )
 
     def decide(self, run_id: str, action: str, digest: str = "") -> None:
         with self.lock, self.sessions.begin() as session:

@@ -18,7 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
-from app.api import eval, events, health, repos, runs
+from app.api import eval, events, health, replays, repos, runs
 from app.config import Settings
 from app.db.models import Base
 from app.db.session import make_engine, make_sessions
@@ -160,7 +160,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"detail": "Database unavailable. Start PostgreSQL and apply Alembic migrations."}, 503
         )
 
-    for router in (health.router, runs.router, events.router, eval.router, repos.router):
+    for router in (
+        health.router,
+        runs.router,
+        events.router,
+        eval.router,
+        repos.router,
+        replays.router,
+    ):
         app.include_router(router)
     return app
 

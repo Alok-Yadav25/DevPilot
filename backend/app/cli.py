@@ -89,6 +89,13 @@ def main(argv: list[str] | None = None) -> int:
 
         settings.max_repo_bytes = min(settings.max_repo_bytes, settings.max_repo_mb * 1024 * 1024)
         # Validate input before spending any API budget.
+        if settings.runner_mode == "replay" and args.command == "doctor":
+            print("Ready: replay runner; no provider calls or repository execution.")
+            return 0
+        if settings.runner_mode == "replay" and args.command == "run":
+            raise DevPilotError(
+                "Replay mode cannot create a live run. Choose a recording in the website."
+            )
         if args.command == "run":
             validate_repo_url(args.repo)
             issue_text = args.issue_file.read_text() if args.issue_file else args.issue

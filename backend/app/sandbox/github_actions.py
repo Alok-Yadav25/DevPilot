@@ -156,7 +156,13 @@ class GitHubActionsRunner:
             raise DevPilotError("Stored sandbox job does not match the pinned repo and patch.")
         if existing.get("result"):
             return TestResult.model_validate(existing["result"])
-        job = existing or {"signature": signature, "started_at": datetime.now(UTC).isoformat()}
+        job = existing or {
+            "signature": signature,
+            "started_at": datetime.now(UTC).isoformat(),
+            "sandbox_repo": self.repo,
+            "target_repo": target_repo,
+            "ref": ref,
+        }
 
         def save(**changes: object) -> None:
             job.update(changes)

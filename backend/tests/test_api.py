@@ -103,7 +103,7 @@ def test_approval_is_bound_to_exact_diff_and_is_one_shot(client: TestClient) -> 
         client.post(
             "/api/runs/test-run/approve", headers=HEADERS, json={"diff_sha256": digest}
         ).status_code
-        == 409
+        == 200
     )
 
 
@@ -236,3 +236,29 @@ def test_publication_uses_only_target_token(client: TestClient):
     ):
         service.publish("test-run")
         github.assert_called_once_with("fake-target-scoped")
+
+
+def test_lightweight_health_does_not_call_runner(client: TestClient):
+    with patch("app.api.health.make_runner") as factory:
+        assert client.get("/api/health?lightweight=true").json() == {"status": "awake"}
+        factory.assert_not_called()
+
+
+def test_retried_run_request_returns_one_durable_job(client: TestClient):
+    service = client.app.state.service
+    service.settings.groq_api_key = SecretStr("fake-groq-key-for-controller-test")
+    payload = {"repo_url": "https://github.com/owner/repo", "issue_text": "Repair this bug"}
+    headers = {**HEADERS, "Idempotency-Key": "a" * 32}
+    with (
+        patch("app.service.RunPolicy.readiness", return_value="https://github.com/owner/repo.git"),
+        patch.object(service.executor, "submit") as submit,
+    ):
+        first = client.post("/api/runs", headers=headers, json=payload)
+        second = client.post("/api/runs", headers=headers, json=payload)
+        assert first.status_code == second.status_code == 202
+        assert first.json()["id"] == second.json()["id"]
+        submit.assert_called_once()
+        different = client.post(
+            "/api/runs", headers=headers, json={**payload, "issue_text": "A different bug"}
+        )
+        assert different.status_code == 409

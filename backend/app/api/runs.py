@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
@@ -45,8 +47,11 @@ def create_run(body: NewRun, request: Request, db: DB) -> dict:
         service = request.app.state.service
         if not service.settings.groq_api_key.get_secret_value():
             raise HTTPException(503, "Set GROQ_API_KEY on the worker before starting live runs.")
+        request_id = request.headers.get("Idempotency-Key", "")
+        if request_id and not re.fullmatch(r"[a-f0-9]{32}", request_id):
+            raise HTTPException(400, "Use a 32-character hexadecimal Idempotency-Key.")
         run_id = service.create(
-            body.repo_url, body.issue_text, body.dry_run, body.expected_failures
+            body.repo_url, body.issue_text, body.dry_run, body.expected_failures, request_id
         )
     except DevPilotError as exc:
         raise HTTPException(409, str(exc)) from exc

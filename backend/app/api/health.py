@@ -9,7 +9,9 @@ router = APIRouter()
 
 
 @router.get("/api/health")
-def health(request: Request) -> dict:
+def health(request: Request, lightweight: bool = False) -> dict:
+    if lightweight:
+        return {"status": "awake"}
     settings = request.app.state.settings
     database = False
     try:

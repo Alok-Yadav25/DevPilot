@@ -269,13 +269,29 @@ class RunService:
                 report["attempts"] = attempts
                 row.report = report
 
-    def create(self, repo: str, issue: str, dry: bool, expected: list[str]) -> str:
+    def create(
+        self, repo: str, issue: str, dry: bool, expected: list[str], request_id: str = ""
+    ) -> str:
+        if request_id:
+            with self.sessions() as db:
+                previous = db.get(RunRow, request_id)
+                if previous:
+                    if (
+                        previous.repo_url != repo
+                        or previous.issue_text != self.redact(issue)
+                        or previous.dry_run != dry
+                        or previous.expected_failures != expected
+                    ):
+                        raise DevPilotError(
+                            "Idempotency key was already used for a different run request."
+                        )
+                    return previous.id
         repo = RunPolicy(self.settings).readiness(repo, issue)
         with self.lock, self.sessions.begin() as session:
             active = len(list(session.scalars(select(RunRow.id).where(RunRow.status.in_(ACTIVE)))))
             if active >= self.settings.max_concurrent_runs + self.settings.max_queued_runs:
                 raise DevPilotError("The run queue is full. Wait and retry.")
-            run_id = uuid4().hex[:12]
+            run_id = request_id or uuid4().hex[:12]
             session.add(
                 RunRow(
                     id=run_id,
@@ -434,6 +450,8 @@ class RunService:
             if row is None:
                 raise KeyError(run_id)
             if action == "cancel":
+                if row.status == "cancelled":
+                    return
                 if row.status not in {"queued", "running"}:
                     raise DevPilotError("This run is no longer cancellable.")
                 row.cancel_requested = True
@@ -443,6 +461,14 @@ class RunService:
                 if row.status == "queued":
                     row.status = "cancelled"
                     row.finished_at = datetime.now(UTC)
+                return
+            if action == "reject" and row.status == "rejected":
+                return
+            if (
+                action == "approve"
+                and row.status in {"completed", "publishing", "pr_created"}
+                and row.approved_diff_sha256 == digest
+            ):
                 return
             if row.status != "ready_for_review":
                 raise DevPilotError("Only a finished, reviewed patch can be approved or rejected.")

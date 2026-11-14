@@ -115,7 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=[x.strip() for x in config.cors_origins.split(",") if x.strip()],
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
+        allow_headers=["Authorization", "Content-Type", "Last-Event-ID", "Idempotency-Key"],
         expose_headers=["Retry-After"],
         allow_credentials=False,
     )

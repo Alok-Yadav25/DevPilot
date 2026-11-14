@@ -1,0 +1,18 @@
+title = "DevPilot secret detection"
+
+[extend]
+useDefault = true
+
+# Include Groq token detection regardless of the bundled ruleset's version.
+[[rules]]
+id = "devpilot-groq-token"
+description = "Groq API credential"
+regex = '''\bgsk_[A-Za-z0-9]{20,}\b'''
+keywords = ["gsk_"]
+
+[[rules.allowlists]]
+description = "Exact numeric dummy used by the existing patch-validator test"
+regexTarget = "match"
+regexes = ['''^gsk_123456789012345678901234567890$''']
+
+# No path exclusions: examples, fixtures, docs and workflow files are scanned.

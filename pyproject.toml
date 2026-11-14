@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devpilot"
+version = "0.1.0"
+description = "A guarded Python bug-fixing agent and live engineering workspace."
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "docker>=7.1,<8",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "sqlalchemy>=2.0,<3",
+  "alembic>=1.15,<2",
+  "psycopg[binary]>=3.2,<4",
+  "GitPython>=3.1.45,<4",
+  "httpx>=0.28,<1",
+  "langgraph>=1.0,<2",
+  "packaging>=25,<27",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.4,<10", "pytest-cov>=6,<8", "ruff>=0.12,<1", "mypy>=1.17,<2", "types-docker>=7.1,<8"]
+
+[project.scripts]
+devpilot = "app.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-ra --strict-markers -m 'not live'"
+markers = ["docker: real Docker integration (opt in with DEVPILOT_DOCKER_TESTS=1)", "live: opt-in tests against real external services"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["backend/app"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["docker.*"]
+ignore_missing_imports = true

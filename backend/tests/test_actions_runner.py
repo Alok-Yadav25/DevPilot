@@ -37,6 +37,24 @@ def runner(handler) -> GitHubActionsRunner:
     )
 
 
+def test_permission_failure_names_operation_without_response_secrets():
+    async def exercise():
+        r = runner(lambda request: httpx.Response(403, json={"message": "sensitive-key"}))
+        try:
+            await r.preflight()
+        except DevPilotError as exc:
+            message = str(exc)
+            assert "GET repos/owner/devpilot-sandbox" in message
+            assert "Contents/Actions write" in message
+            assert "sensitive-key" not in message
+        else:
+            pytest.fail("A denied sandbox request must fail")
+        finally:
+            await r.close()
+
+    asyncio.run(exercise())
+
+
 def test_dispatch_empty_baseline_and_cleanup() -> None:
     calls = []
 

@@ -4,13 +4,13 @@ An agent for small, reproducible Python/pytest bugs. It investigates a public Gi
 
 **Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** The owner authorized deployment to Cloudflare Pages, Render and Neon. See [deployment status](docs/DEPLOYMENT.md) for verified progress; configuration alone is not a completed deployment.
 
-**Online:** [DevPilot](https://devpilot-alokyadav25.pages.dev) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health). The hosted API currently uses **replay mode**. Illustrative samples work; live repairs are disabled pending GitHub sandbox setup and separate runtime tokens.
+**Online:** [DevPilot](https://devpilot-alokyadav25.pages.dev) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health). The hosted API uses **GitHub Actions** with separate sandbox and target credentials. Illustrative samples work; real repair verification is in progress.
 
 ## Honest status
 
 The website, API and CLI now select the same runner. Checkpoints, expiring database leases, remote job reattachment, public-repository policy, cold-start recovery, review tools and recorded replay storage are implemented. The UI is organized around starting a run, following the investigation and reviewing the patch.
 
-**A complete real GitHub/Groq repair is still unverified.** The owner confirmed Groq key rotation, but the sandbox and three public fixture repos are provisioned, while the separate runtime sandbox and target tokens are still missing. The [real-service verification table](docs/VERIFICATION.md) explicitly lists every live scenario as not run. There are **zero real recordings and zero executed real evaluation cases**. Scripted examples and mocked controller tests never count as autonomous repair successes.
+**A complete real GitHub/Groq repair is still unverified.** The owner confirmed Groq key rotation, but the sandbox and three public fixture repos are provisioned, and separate runtime sandbox and target tokens are configured. The [real-service verification table](docs/VERIFICATION.md) explicitly lists every live scenario as not run. There are **zero real recordings and zero executed real evaluation cases**. Scripted examples and mocked controller tests never count as autonomous repair successes.
 
 Local evidence is in [the quality report](docs/quality/REPORT.md). Phase reports [1](docs/PHASE-1.md), [2](docs/PHASE-2.md), [3](docs/PHASE-3.md), [4](docs/PHASE-4.md), [5](docs/PHASE-5.md), [6](docs/PHASE-6.md), [7](docs/PHASE-7.md), [8](docs/PHASE-8.md) and [9](docs/PHASE-9.md) distinguish implementation, local tests and unmet live criteria.
 
@@ -146,4 +146,4 @@ The new landing page is at `/`, with the focused run form at `/workspace`. See t
 
 Protected API: runs/list/detail/events, approve/reject/cancel, JSON report, limits, evaluation and repository readiness/issue reads. Public read-only routes: health and recordings. SSE has 15-second heartbeats, Last-Event-ID reconnect and client polling fallback. `/api/health?lightweight=true` supports bounded cold-start probing. Run creation accepts a stable `Idempotency-Key` so a lost response does not create another job.
 
-Deployment to Cloudflare Pages, Render and Neon is online in replay mode. Check [deployment status](docs/DEPLOYMENT.md) for actual URLs, verification and remaining live-run setup. [Render's free services](https://render.com/docs/free) can sleep after idle periods and restart; the client shows a bounded waking state rather than an immediate 8-second failure. Free quotas and public runner availability vary. No paid fallback or guaranteed uptime is claimed.
+Deployment to Cloudflare Pages, Render and Neon is online with the GitHub Actions runner. Check [deployment status](docs/DEPLOYMENT.md) for actual URLs, verification and remaining live-run setup. [Render's free services](https://render.com/docs/free) can sleep after idle periods and restart; the client shows a bounded waking state rather than an immediate 8-second failure. Free quotas and public runner availability vary. No paid fallback or guaranteed uptime is claimed.

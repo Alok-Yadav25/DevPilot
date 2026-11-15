@@ -7,10 +7,10 @@ Updated November 16, 2026 (India time). Source: [Alok-Yadav25/DevPilot](https://
 | Component | Deployment | Verified state |
 | --- | --- | --- |
 | Frontend | [Cloudflare Pages](https://devpilot-alokyadav25.pages.dev) | Static React application, HTTPS and SPA routing |
-| API | [Render API](https://devpilot-api-alok-yadav25.onrender.com) | Free plan, Singapore; **replay mode**, live execution disabled |
+| API | [Render API](https://devpilot-api-alok-yadav25.onrender.com) | Free plan, Singapore; **GitHub Actions** runner, separate tokens configured |
 | Database | Neon project `restless-shadow-39597218` | Free organization, Singapore; pooled SSL connection, migration `0004_eval_evidence`, seven public tables |
 
-The frontend is built with `VITE_API_URL=https://devpilot-api-alok-yadav25.onrender.com`. Provider credentials are never frontend variables. `render.yaml` is the **live-runner template**; it does not describe the temporary replay setting on the currently hosted service.
+The frontend is built with `VITE_API_URL=https://devpilot-api-alok-yadav25.onrender.com`. Provider credentials are never frontend variables. `render.yaml` describes the GitHub Actions runner; its initial replay-only deployment has been replaced by the configured live runner.
 
 ## Real hosting checks
 
@@ -19,7 +19,7 @@ These checks reached actual deployed services, not mocks. They do **not** verify
 | Check | Observed result |
 | --- | --- |
 | Render deployment `dep-dbsvk2e1egvs73f0kgpg` | Live; API source `ebc1dd71e56ed162db253dba702d49f6e5369673` |
-| `GET /api/health` | 200; database reachable, runner `replay`, ready for replay |
+| `GET /api/health` | Initially 200 with runner `replay`; now 200 with runner `github_actions`, database/runner/Groq configuration ready |
 | `GET /api/health?lightweight=true` | 200; awake |
 | `GET /api/runs` without credential | 401 |
 | Authenticated runs, limits and evaluation | 200 |
@@ -37,7 +37,7 @@ HTTP evidence was collected at `2026-11-15T18:31:58Z` (November 16 in India). Pr
 
 1. Open the [workspace](https://devpilot-alokyadav25.pages.dev/workspace). Illustrative examples require no token.
 2. For protected API data, open **Connect worker**. Use the API address above and `API_ACCESS_TOKEN` from this project's ignored local `.env`, or the Render service's private environment settings. This randomly generated worker token is **different from the Render API key**.
-3. Click **Test & save**. Browser credentials are session-only. Replay mode refuses live repair requests even with valid access.
+3. Click **Test & save**. Browser credentials are session-only. Live requests use GitHub Actions; publication still requires approval of the exact tested diff.
 
 Cloudflare uses **Direct Upload**, not automatic GitHub deployment. After source changes, build with `VITE_API_URL` set and upload `frontend/dist` to the existing Pages project using authenticated Wrangler. No secrets belong in that directory. A persisted-state migration moves returning visitors with the old empty API address onto the bundled hosted address; custom worker addresses are preserved.
 
@@ -56,11 +56,15 @@ The workflow is dispatch-only. Publishing fixtures is not a test execution or re
 
 ## Remaining live-run setup
 
-The separate `SANDBOX_GITHUB_TOKEN` and `TARGET_GITHUB_TOKEN` were **not found** in the project `.env` or Render when checked. The owner has been given token creation instructions. Before enabling live repairs:
+The separate sandbox and target tokens are now configured privately on Render. Both authenticated as the expected GitHub owner; the sandbox workflow is active and reachable. Those checks alone do not prove write permissions or a complete repair.
 
-1. Configure two distinct fine-grained tokens: sandbox-only Actions/Contents write, and target-only Contents/Pull requests write. Never reuse the broad GitHub CLI credential.
-2. Privately set Groq and both GitHub tokens on Render. Set `SANDBOX_REPO`, an exact target allowlist, and `RUNNER_MODE=github_actions`; redeploy.
-3. Check runner health, then execute the [real-service verification checklist](VERIFICATION.md). A complete GitHub/Groq repair, restart during Actions execution, approval and draft PR remain unverified. There are zero executed real evaluation cases and zero real replay records.
+1. Keep the two fine-grained tokens separate: sandbox-only Actions/Contents write, and target-only Contents/Pull requests write. The broad GitHub CLI credential is not used by the deployed application.
+2. Groq, both GitHub tokens, `SANDBOX_REPO`, the exact three-repository allowlist, and `RUNNER_MODE=github_actions` are configured. Owner-wide access is disabled.
+3. Check runner health, then execute the [real-service verification checklist](VERIFICATION.md). A real website dry run was accepted after the quota fix, but failed preparing the baseline branch with sandbox HTTP 403. Correcting sandbox repository/write access is the next required step. A complete GitHub/Groq repair, restart during Actions execution, approval and draft PR remain unverified. There are zero executed real evaluation cases and zero real replay records.
+
+## Shared GitHub quota regression
+
+The first hosted run request was rejected before a run was created because Render's shared IP had exhausted the anonymous GitHub REST metadata quota. The fix uses an anonymous shallow clone with the existing size, file-count, timeout, Python and pytest checks when metadata returns 403/429. No scoped token is borrowed for policy metadata. Repository code is never executed by this check. Five mocked regressions cover quota fallback, inaccessible/private-style clone failure, size and setup rejection, plus temporary-directory cleanup. This fallback can require an extra clone; it is bounded rather than a free-tier quota bypass.
 
 ## Free-tier limits
 
@@ -70,4 +74,4 @@ The client has bounded cold-start retries, but an actual idle sleep/wake cycle h
 
 ## Local checks
 
-Backend preparation: 160 passed, five optional Docker checks skipped, one live test excluded; Ruff and mypy pass. Frontend: 45 tests pass, including three mocked persisted-connection migration checks; production TypeScript/Vite build passes. Local/mock checks are distinct from the hosting checks above.
+Backend after deployment regression fixes: 166 passed, five optional Docker checks skipped, one live test excluded; Ruff and mypy pass. Frontend: 45 tests pass, including three mocked persisted-connection migration checks; production TypeScript/Vite build passes. A sixth mocked regression checks that sandbox permission errors identify the operation without exposing response secrets. Local/mock checks are distinct from the hosting checks above.

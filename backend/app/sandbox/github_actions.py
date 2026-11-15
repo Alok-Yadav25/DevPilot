@@ -125,7 +125,9 @@ class GitHubActionsRunner:
             if response.status_code >= 400:
                 raise DevPilotError(
                     f"GitHub sandbox HTTP {response.status_code}; "
-                    "check permissions, workflow and quotas."
+                    f"{method} {self.redact(path.split('?')[0])}. "
+                    "Check sandbox token repository access, Contents/Actions write "
+                    "permissions, workflow and quotas."
                 )
             return response
         raise DevPilotError("GitHub sandbox request budget exhausted.")

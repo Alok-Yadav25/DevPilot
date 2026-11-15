@@ -1,5 +1,5 @@
 # Render Free web service. PostgreSQL is provisioned separately on Neon.
-# Live-runner template; the hosted service currently uses replay mode.
+# The hosted service now uses this runner with separately scoped GitHub tokens.
 # Free services have no pre-deploy hook; app.serve migrates before Uvicorn starts.
 services:
   - type: web
@@ -33,7 +33,7 @@ services:
       - key: TARGET_GITHUB_TOKEN
         sync: false
       - key: ALLOWED_TARGET_OWNER
-        value: Alok-Yadav25
+        value: ""
       - key: ALLOWED_TARGET_REPOS
         value: Alok-Yadav25/devpilot-example-slugify,Alok-Yadav25/devpilot-example-clamp,Alok-Yadav25/devpilot-example-backoff
       - key: ALLOWED_ORIGINS

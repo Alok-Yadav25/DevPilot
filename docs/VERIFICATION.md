@@ -1,10 +1,10 @@
 # Real-service verification
 
-Updated November 16, 2026. **No full real-service scenario has run.** A local passing mocked test is not an entry in this table. Groq key rotation was confirmed by the owner in chat; revocation was not independently checked. The hosted website, replay API and Neon database are online; see [deployment evidence](DEPLOYMENT.md). The sandbox and three fixture repos have been published with an exact allowlist. Separate runtime PATs are still missing. No full repair scenario has run.
+Updated November 16, 2026. **No successful complete real repair has been verified.** A local passing mocked test is not an entry in this table. Groq key rotation was confirmed by the owner in chat; revocation was not independently checked. The hosted website, GitHub Actions API and Neon database are online; see [deployment evidence](DEPLOYMENT.md). The sandbox and three fixture repos have been published with an exact allowlist. Separate runtime PATs and Groq are now configured, and runner health passes. A first hosted dry run reached baseline preparation and failed with sandbox HTTP 403 before any Actions workflow was dispatched.
 
 | Scenario | Real result | Evidence | Date |
 | --- | --- | --- | --- |
-| First-attempt fix | Not run | — | — |
+| First-attempt fix | Blocked before tests: sandbox branch preparation denied (403) | [Hosted run](https://devpilot-alokyadav25.pages.dev/run/50736919a2124a1a914f3220cd5a2d8b) | 2026-11-16 |
 | Fix requiring retry | Not run | — | — |
 | Failure after three attempts | Not run | — | — |
 | Unrelated baseline failure → unsuitable | Not run | — | — |
@@ -16,6 +16,12 @@ Updated November 16, 2026. **No full real-service scenario has run.** A local pa
 | Kill API during Actions wait, restart | Not run | — | — |
 | Real Groq 429 | Not run | — | — |
 | Missing artifact / remote timeout | Not run | — | — |
+
+## Live deployment smoke evidence
+
+The actual public website connected using the worker credential, submitted the slugify fixture with dry run enabled, navigated to the live run page, and connected SSE. Run `50736919a2124a1a914f3220cd5a2d8b` cloned pinned SHA `b1558611e3cf2444adaced6c299040f73a65a825` successfully, then failed while preparing baseline 1. Sandbox-token reads of the target and main ref returned 200; no sandbox branch was recorded as created, and no Actions run was dispatched. The owner was asked to correct the sandbox token's repository selection and Contents/Actions write access. No LLM call, tested patch, approval or PR was produced.
+
+The earlier shared-IP metadata limit blocked a request before run creation; the bounded anonymous-clone fallback was then deployed in commit `3ca1400`. Neither failure is an autonomous repair success.
 
 ## Provisioning checklist
 

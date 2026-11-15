@@ -21,6 +21,7 @@ from app.config import Settings
 from app.db.models import AttemptRow, ReplayRunRow, RunEventRow, RunRow
 from app.errors import DevPilotError, RunCancelled, WorkerPaused
 from app.github.client import GitHubClient
+from app.github.clone import validate_repo_url
 from app.github.pr import publish_reviewed_patch
 from app.policy import RunPolicy
 from app.sandbox.factory import make_runner
@@ -291,22 +292,36 @@ class RunService:
             raise DevPilotError(
                 "Live runs are disabled in replay mode. Choose a recording or sample."
             )
-        if request_id:
-            with self.sessions() as db:
-                previous = db.get(RunRow, request_id)
-                if previous:
-                    if (
-                        previous.repo_url != repo
-                        or previous.issue_text != self.redact(issue)
-                        or previous.dry_run != dry
-                        or previous.expected_failures != expected
-                    ):
-                        raise DevPilotError(
-                            "Idempotency key was already used for a different run request."
-                        )
-                    return previous.id
+        repo = validate_repo_url(repo)
+
+        def existing(db: Session) -> str | None:
+            previous = db.get(RunRow, request_id) if request_id else None
+            if previous:
+                if (
+                    previous.repo_url != repo
+                    or previous.issue_text != self.redact(issue)
+                    or previous.dry_run != dry
+                    or previous.expected_failures != expected
+                ):
+                    raise DevPilotError(
+                        "Idempotency key was already used for a different run request."
+                    )
+                return previous.id
+            return None
+
+        with self.sessions() as db:
+            previous_id = existing(db)
+            if previous_id:
+                return previous_id
         repo = RunPolicy(self.settings).readiness(repo, issue)
         with self.lock, self.sessions.begin() as session:
+            if session.bind is not None and session.bind.dialect.name == "postgresql":
+                session.execute(text("SELECT pg_advisory_xact_lock(73486021)"))
+            else:
+                session.execute(text("BEGIN IMMEDIATE"))
+            previous_id = existing(session)
+            if previous_id:
+                return previous_id
             active = len(list(session.scalars(select(RunRow.id).where(RunRow.status.in_(ACTIVE)))))
             if active >= self.settings.max_concurrent_runs + self.settings.max_queued_runs:
                 raise DevPilotError("The run queue is full. Wait and retry.")

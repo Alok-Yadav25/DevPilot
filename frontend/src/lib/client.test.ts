@@ -84,3 +84,19 @@ describe("API connection recovery", () => {
     expect(((await result) as ApiError).kind).toBe("connection");
   });
 });
+
+it("does not retry a slow but valid run-readiness request", async () => {
+  vi.useFakeTimers();
+  const fetcher = vi.fn(async (url: string | URL | Request) => {
+    if (String(url).includes("lightweight")) return json({ status: "awake" });
+    await new Promise((resolve) => setTimeout(resolve, 55000));
+    return json({ id: "one-created-run" });
+  });
+  const result = createApiClient({ fetcher })("", "/runs", {
+    method: "POST",
+    body: "{}",
+  });
+  await vi.advanceTimersByTimeAsync(56000);
+  await expect(result).resolves.toEqual({ id: "one-created-run" });
+  expect(fetcher).toHaveBeenCalledTimes(2); // One cheap probe, one mutation.
+});

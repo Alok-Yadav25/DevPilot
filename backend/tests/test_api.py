@@ -338,3 +338,33 @@ def test_health_does_not_claim_old_schema_is_ready(client: TestClient):
     health = client.get("/api/health").json()
     assert health["database"] is False and health["ready"] is False
     assert "migrations" in health["message"]
+
+
+def test_simultaneous_lost_response_retries_create_only_one_run(client: TestClient):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    service = client.app.state.service
+    service.settings.runner_mode = "github_actions"
+    service.settings.groq_api_key = SecretStr("fake-groq-for-concurrency")
+    gate = threading.Barrier(2)
+
+    def readiness(*args):
+        gate.wait(timeout=5)
+        return "https://github.com/owner/repo.git"
+
+    headers = {**HEADERS, "Idempotency-Key": "b" * 32}
+    payload = {"repo_url": "https://github.com/owner/repo", "issue_text": "Repair this bug"}
+    with (
+        patch("app.service.RunPolicy.readiness", side_effect=readiness),
+        patch.object(service.executor, "submit") as submit,
+        ThreadPoolExecutor(max_workers=2) as callers,
+    ):
+        results = [
+            callers.submit(client.post, "/api/runs", headers=headers, json=payload)
+            for _ in range(2)
+        ]
+        responses = [future.result(timeout=10) for future in results]
+        assert [r.status_code for r in responses] == [202, 202]
+        assert responses[0].json()["id"] == responses[1].json()["id"]
+        submit.assert_called_once()

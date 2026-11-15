@@ -6,9 +6,9 @@ These results describe local code and browser checks. **No real GitHub/Groq repa
 
 | Check | Observed result | Scope |
 | --- | --- | --- |
-| Backend default pytest | 151 passed, 5 skipped, 1 live test deselected | Local unit/controller/in-process checks; provider HTTP and model/test outcomes are mocked |
+| Backend default pytest | 152 passed, 5 skipped, 1 live test deselected | Local unit/controller/in-process checks; provider HTTP and model/test outcomes are mocked |
 | Ruff / mypy | Passed; 44 app source files type-checked | Local static checks |
-| Frontend tests | 26 passed | Vitest 5.1.0; fixtures, mocked fetch and fake timers |
+| Frontend tests | 27 passed | Vitest 5.1.0; fixtures, mocked fetch and fake timers |
 | Frontend production build | Passed | React 18 / Vite 6 |
 | Typography check | Passed | No authored text sizes below 12px |
 | Playwright | 6 passed across desktop 1440×900 and mobile 390×844 | Mocked API and fixture playback, including explicit keyboard approval |
@@ -19,7 +19,7 @@ These results describe local code and browser checks. **No real GitHub/Groq repa
 
 The API-to-Actions integration test uses the actual service, factory, adapter, agent, temporary Git checkout, patch validator and database, with **mocked GitHub HTTP and scripted Groq/test outcomes**. It observes two baseline jobs and one patched job, stores replay evidence, and stops for approval without target publication. It is not an autonomous repair success measurement.
 
-Additional regressions cover node-boundary power loss (including retry), lease expiry/terminal preservation, remote reattachment without a second dispatch, lost PR-response reconciliation, idempotent run creation, redacted logs/errors, cancellation cleanup before target-policy checks, old-schema health failure and approval-bound report export.
+Additional regressions cover node-boundary power loss (including retry), lease expiry/terminal preservation, remote reattachment without a second dispatch, lost PR-response reconciliation, idempotent run creation (including simultaneous retries), slow readiness without duplicate mutation, redacted logs/errors, cancellation cleanup before target-policy checks, old-schema health failure and approval-bound report export.
 
 ## Lighthouse
 

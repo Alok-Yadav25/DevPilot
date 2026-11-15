@@ -13,8 +13,10 @@ Changed:
 - `scripts/lighthouse.mjs`, `docs/quality/`: reproducible local measurement script, all three trials per page, initial lower results and explicit measurement limits.
 - README and historical-note labels: current setup, runner/network boundaries, hosting ban and unmet live criteria.
 
-Tests: 151 backend passed, 5 Docker checks skipped and 1 live test excluded. 26 frontend tests passed; 6 Playwright checks passed; build, Ruff, mypy, typography and SQLite migration checks passed. See [quality evidence](quality/REPORT.md) for actual Lighthouse trials and limitations.
+Tests: 152 backend passed, 5 Docker checks skipped and 1 live test excluded. 27 frontend tests passed; 6 Playwright checks passed; build, Ruff, mypy, typography and SQLite migration checks passed. See [quality evidence](quality/REPORT.md) for actual Lighthouse trials and limitations.
 
 Verified live providers: none. 25 local evaluation repos prepared; no real evaluation outcomes recorded. No real recordings or hosted scores are invented. Full live acceptance remains pending the missing GitHub configuration and actual scenario execution. No deployment or remote publication performed.
 
 Repository preservation: the root initially had no committed application baseline and the frontend had separate local Git history. A final source-preservation commit tracks the complete existing application (including plain frontend files, not a broken Git link), retaining the nested local history. Ignored environments, dependencies, build output, local audit tools and obsolete ChatGPT hosting configuration are excluded. Generated Lighthouse evidence is marked as generated for review; secret scanning still includes it.
+
+Final connection regression: run creation probes lightweight health before its longer readiness request; simultaneous idempotent retries are serialized with a database transaction lock and return one durable run. A fake-timer 55-second readiness test and a concurrent API retry test cover the regression.

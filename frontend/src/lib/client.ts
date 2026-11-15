@@ -108,10 +108,23 @@ export function createApiClient(
     )
       headers.set("Idempotency-Key", crypto.randomUUID().replaceAll("-", ""));
     const prepared = { ...init, headers };
+    const creatingRun = path === "/runs" && init.method === "POST";
+    const actionTimeout = creatingRun ? 120000 : timeout;
     const deadline = Date.now() + wakeMs;
     let response: Response;
     try {
-      response = await timed(`${base}/api${path}`, prepared);
+      if (creatingRun) {
+        const probe = await timed(`${base}/api/health?lightweight=true`, {
+          signal: init.signal,
+        });
+        if (
+          !probe.ok ||
+          !probe.headers.get("content-type")?.includes("application/json") ||
+          (await probe.json()).status !== "awake"
+        )
+          throw new TypeError("Server is waking");
+      }
+      response = await timed(`${base}/api${path}`, prepared, actionTimeout);
       if (
         [502, 504].includes(response.status) ||
         (response.status === 503 &&
@@ -140,9 +153,10 @@ export function createApiClient(
       }
       try {
         await pending;
+        options.onState?.("connected");
         if (init.signal?.aborted)
           throw new DOMException("Cancelled", "AbortError");
-        response = await timed(`${base}/api${path}`, prepared);
+        response = await timed(`${base}/api${path}`, prepared, actionTimeout);
       } catch (failure) {
         options.onState?.("error");
         if (failure instanceof ApiError) throw failure;

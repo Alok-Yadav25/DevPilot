@@ -49,7 +49,10 @@ class RunPolicy:
                     "Public repository not found. Check the URL; private repos are unsupported."
                 )
             if response.status_code in {403, 429}:
-                raise DevPilotError("GitHub metadata is rate limited. Wait for reset and retry.")
+                # Free hosts share anonymous REST quotas. A successful credential-free
+                # clone independently proves public access; inspect its actual bytes,
+                # files and pytest setup without borrowing either scoped token.
+                return self._public_checkout(normalized)
             response.raise_for_status()
             info = response.json()
             if info.get("private") is not False:
@@ -91,11 +94,22 @@ class RunPolicy:
 
     def readiness(self, url: str, issue: str = "Repository readiness check") -> str:
         normalized = self.remote(url, issue)
+        return self._public_checkout(normalized)
+
+    def _public_checkout(self, normalized: str) -> str:
         with workspace(self.settings.work_root, "readiness-" + uuid4().hex[:12]) as root:
-            Cloner(
-                min(self.settings.max_repo_bytes, self.settings.max_repo_mb * 1024 * 1024),
-                self.settings.max_repo_files,
-                self.settings.clone_timeout_seconds,
-            ).clone(normalized, root)
+            try:
+                Cloner(
+                    min(self.settings.max_repo_bytes, self.settings.max_repo_mb * 1024 * 1024),
+                    self.settings.max_repo_files,
+                    self.settings.clone_timeout_seconds,
+                ).clone(normalized, root)
+            except UnsuitableRepository:
+                raise
+            except DevPilotError as exc:
+                raise DevPilotError(
+                    "Anonymous repository access failed. Check that the URL is public "
+                    "and reachable, then retry."
+                ) from exc
             self.checkout(root)
         return normalized

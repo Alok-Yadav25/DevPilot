@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -71,3 +72,64 @@ def test_configured_owner_and_python_version(tmp_path):
     (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python=">=3.12"\n')
     with pytest.raises(DevPilotError, match="Python 3.11"):
         policy.checkout(tmp_path)
+
+
+@pytest.mark.parametrize("status", [403, 429])
+def test_shared_metadata_quota_uses_bounded_anonymous_clone(tmp_path, status):
+    settings = Settings(
+        _env_file=None,
+        allowed_target_repos="owner/repo",
+        work_root=tmp_path / "work",
+        sandbox_github_token="sandbox-private",
+        target_github_token="target-private",
+    )
+    with (
+        httpx.Client(
+            base_url="https://api.github.com/",
+            transport=httpx.MockTransport(lambda request: httpx.Response(status)),
+        ) as client,
+        patch("app.policy.Cloner") as cloner,
+    ):
+        cloner.return_value.clone.side_effect = lambda url, root: seed_repo(root)
+        policy = RunPolicy(settings, client)
+        assert policy.remote("https://github.com/owner/repo", "Repair this bug").endswith(
+            "repo.git"
+        )
+        cloner.assert_called_once_with(
+            50 * 1024 * 1024, settings.max_repo_files, settings.clone_timeout_seconds
+        )
+        assert not list(settings.work_root.iterdir())
+
+
+@pytest.mark.parametrize("problem", ["inaccessible", "oversized", "unsupported"])
+def test_metadata_fallback_keeps_policy_and_cleanup(tmp_path, problem):
+    settings = Settings(
+        _env_file=None, allowed_target_repos="owner/repo", work_root=tmp_path / "work"
+    )
+
+    def clone(url, root):
+        if problem == "inaccessible":
+            raise DevPilotError("Clone failed")
+        if problem == "oversized":
+            root.mkdir()
+            (root / "large").write_bytes(b"x" * 2000)
+            settings.max_repo_bytes = 1024
+        else:
+            root.mkdir()
+
+    expected = {
+        "inaccessible": "Anonymous repository access failed",
+        "oversized": "size or file-count",
+        "unsupported": "pytest",
+    }[problem]
+    with (
+        httpx.Client(
+            base_url="https://api.github.com/",
+            transport=httpx.MockTransport(lambda request: httpx.Response(429)),
+        ) as client,
+        patch("app.policy.Cloner") as cloner,
+    ):
+        cloner.return_value.clone.side_effect = clone
+        with pytest.raises(DevPilotError, match=expected):
+            RunPolicy(settings, client).remote("https://github.com/owner/repo", "Repair this bug")
+        assert not list(settings.work_root.iterdir())

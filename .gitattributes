@@ -1,0 +1,2 @@
+# Keep generated measurement evidence out of the default code-review diff.
+docs/quality/lighthouse/** linguist-generated=true

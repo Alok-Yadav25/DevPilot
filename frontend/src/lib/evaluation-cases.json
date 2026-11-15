@@ -1,0 +1,127 @@
+[
+  {
+    "id": "case-01",
+    "name": "Normalize word separators",
+    "category": "String handling"
+  },
+  {
+    "id": "case-02",
+    "name": "Normalize identifier case",
+    "category": "String handling"
+  },
+  {
+    "id": "case-03",
+    "name": "Trim both ends",
+    "category": "String handling"
+  },
+  {
+    "id": "case-04",
+    "name": "Replace every separator",
+    "category": "String handling"
+  },
+  {
+    "id": "case-05",
+    "name": "Keep an exact prefix",
+    "category": "String handling"
+  },
+  {
+    "id": "case-06",
+    "name": "Respect clamp boundaries",
+    "category": "Boundary conditions"
+  },
+  {
+    "id": "case-07",
+    "name": "Include zero in nonnegative",
+    "category": "Boundary conditions"
+  },
+  {
+    "id": "case-08",
+    "name": "Include the threshold",
+    "category": "Boundary conditions"
+  },
+  {
+    "id": "case-09",
+    "name": "Bound the last index",
+    "category": "Boundary conditions"
+  },
+  {
+    "id": "case-10",
+    "name": "Take a complete page",
+    "category": "Boundary conditions"
+  },
+  {
+    "id": "case-11",
+    "name": "Start backoff at one",
+    "category": "Off-by-one"
+  },
+  {
+    "id": "case-12",
+    "name": "Find a zero-based index",
+    "category": "Off-by-one"
+  },
+  {
+    "id": "case-13",
+    "name": "Include the range endpoint",
+    "category": "Off-by-one"
+  },
+  {
+    "id": "case-14",
+    "name": "Count inclusive intervals",
+    "category": "Off-by-one"
+  },
+  {
+    "id": "case-15",
+    "name": "Read a one-based position",
+    "category": "Off-by-one"
+  },
+  {
+    "id": "case-16",
+    "name": "Deduplicate in input order",
+    "category": "Collections"
+  },
+  {
+    "id": "case-17",
+    "name": "Flatten nested rows",
+    "category": "Collections"
+  },
+  {
+    "id": "case-18",
+    "name": "Keep the exact match",
+    "category": "Collections"
+  },
+  {
+    "id": "case-19",
+    "name": "Preserve valid zero values",
+    "category": "Collections"
+  },
+  {
+    "id": "case-20",
+    "name": "Map keys to their values",
+    "category": "Collections"
+  },
+  {
+    "id": "case-21",
+    "name": "Convert fractions to percent",
+    "category": "Numeric logic"
+  },
+  {
+    "id": "case-22",
+    "name": "Calculate the true mean",
+    "category": "Numeric logic"
+  },
+  {
+    "id": "case-23",
+    "name": "Floor negative numbers",
+    "category": "Numeric logic"
+  },
+  {
+    "id": "case-24",
+    "name": "Return absolute distance",
+    "category": "Numeric logic"
+  },
+  {
+    "id": "case-25",
+    "name": "Return the discounted price",
+    "category": "Numeric logic"
+  }
+]

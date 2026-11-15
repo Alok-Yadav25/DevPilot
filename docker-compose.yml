@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: devpilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpilot}
+      POSTGRES_DB: devpilot
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - devpilot-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+# Run FastAPI on the Docker host. The API must control the daemon, but the
+# untrusted sandbox must NEVER receive a Docker socket or host mount.
+# Avoid silently mounting a Docker socket into a publicly hosted API container.
+volumes:
+  devpilot-postgres:

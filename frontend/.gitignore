@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env*
+!.env.example
+*.tsbuildinfo
+.openai/local/
+.sites/
+
+# ChatGPT hosting prohibited by the user.
+.openai/hosting.json
+
+.DS_Store
+test-results/
+playwright-report/

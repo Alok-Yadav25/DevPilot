@@ -1,0 +1,51 @@
+{
+  "name": "devpilot-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "format": "prettier --write src *.ts *.js index.html",
+    "format:check": "prettier --check src *.ts *.js index.html",
+    "test:e2e": "playwright test",
+    "check:typography": "node scripts/check-typography.mjs",
+    "audit:quality": "node scripts/lighthouse.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-switch": "^1.2.6",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@tanstack/react-query": "^5.90.0",
+    "@xyflow/react": "^12.8.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.0",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-diff-view": "^3.3.3",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.5",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^2.6.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.10",
+    "@types/react": "^18.3.26",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.21",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.6",
+    "prettier": "^3.10.1",
+    "tailwindcss": "^3.4.18",
+    "typescript": "~5.8.3",
+    "vite": "^6.4.0",
+    "vitest": "^5.1.0"
+  }
+}

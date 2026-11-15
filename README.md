@@ -2,9 +2,13 @@
 
 An agent for small, reproducible Python/pytest bugs. It investigates a public GitHub repository, proposes a bounded patch, runs tests through the selected sandbox, and pauses for human review. Only approval of the exact tested diff can create a target branch and draft PR. There is no merge operation.
 
-**Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** The owner authorized deployment to Cloudflare Pages, Render and Neon. See [deployment status](docs/DEPLOYMENT.md) for verified progress; configuration alone is not a completed deployment.
+**[Open DevPilot](https://devpilot-alokyadav25.pages.dev)** · [Workspace & replay](https://devpilot-alokyadav25.pages.dev/workspace) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health) · [Deployment status](docs/DEPLOYMENT.md)
 
-**Online:** [DevPilot](https://devpilot-alokyadav25.pages.dev) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health). The hosted API uses **GitHub Actions** with separate sandbox and target credentials. One real Python/pytest dry run completed with human approval; its recording can be replayed from the workspace.
+[![DevPilot's deployed landing page with its dark theme, hero and illustrative patch preview](docs/images/landing.png)](https://devpilot-alokyadav25.pages.dev)
+
+**Try the real recording:** open the [workspace](https://devpilot-alokyadav25.pages.dev/workspace), find **Recorded runs**, and choose **Replay**. No token is needed for playback. Starting live repairs requires a worker access token and an allowlisted repository.
+
+The frontend runs on Cloudflare Pages, the API on Render, and PostgreSQL on Neon. Live tests run through GitHub Actions with separate sandbox and target credentials.
 
 ## Honest status
 
@@ -14,7 +18,26 @@ The website, API and CLI now select the same runner. Checkpoints, expiring datab
 
 Local evidence is in [the quality report](docs/quality/REPORT.md). Phase reports [1](docs/PHASE-1.md), [2](docs/PHASE-2.md), [3](docs/PHASE-3.md), [4](docs/PHASE-4.md), [5](docs/PHASE-5.md), [6](docs/PHASE-6.md), [7](docs/PHASE-7.md), [8](docs/PHASE-8.md) and [9](docs/PHASE-9.md) distinguish implementation, local tests and unmet live criteria.
 
+## Screenshots
+
+Captured from the deployed website on November 16, 2026.
+
+**Workspace** — start a Python/pytest investigation or replay a recorded run.
+
+![DevPilot workspace with the repository and bug form, dry-run toggle and recorded-run replay](docs/images/workspace.png)
+
+**Recorded repair** — the real slugify investigation replayed at the review gate, showing the validated source diff. Both patched tests passed; [evidence](docs/evidence/hosted-slugify-2026-11-16.json) includes the original Actions runs and human approval.
+
+![Replay of the real slugify repair showing completed investigation steps and the underscore-to-hyphen diff](docs/images/recorded-repair.png)
+
+<details>
+<summary>Illustrative workflow animation</summary>
+
+This animation is scripted, not a recording of a real autonomous run.
+
 ![Illustrative workflow, not a real autonomous-run recording](docs/devpilot-workflow.gif)
+
+</details>
 
 ## Run the website locally
 
@@ -101,11 +124,11 @@ flowchart LR
 - Every attempt starts from the pinned baseline. The validator rejects tests, protected paths, whole-file replacement, oversized patches and secret-like content. Limit: 3 attempts, 5 source files, 200 changed lines.
 - Repeated errors and run/test timeouts stop retries. Passing results must preserve the baseline test inventory.
 - Completed nodes and remote Actions IDs are persisted. Restart re-clones the pinned SHA and re-applies the patch; polling reattaches to a stored remote ID. Ambiguous dispatches are reconciled by stable job names, never blindly repeated. Approval waits remain reviewable.
-- A 45-second database lease with 10-second heartbeats prevents duplicate ownership. Postgres behavior and process-kill recovery still require real-service evidence; local simulations pass.
+- A 45-second database lease with 10-second heartbeats prevents duplicate ownership. Approval-wait recovery is verified on hosted PostgreSQL. Recovery during active Actions polling and at every node boundary still requires real-service evidence; local simulations pass.
 - Cancellation requests remote cancellation and patch-branch cleanup. Terminal runs remain terminal. Retention cleans recorded old sandbox branches and expired temporary checkouts.
 - The worker exposes observed provider budgets and queue state; unknown budgets remain unknown. Public policy metadata reads are anonymous and have a lower GitHub quota, so evaluation may need small batches.
 
-**Network limitation:** Actions prepares dependencies inside a restricted, secret-free container with public network access. Before pytest imports or test hooks, the host disconnects networking, checks that no network remains, and acknowledges test execution. Tests have a 120-second deadline. **Installation is not offline.** Strict network denial for all repository code requires the explicit local runner with a prebuilt offline wheelhouse/image, or further Actions preparation work. This boundary has not yet been exercised on a real hosted Actions runner.
+**Network limitation:** Actions prepares dependencies inside a restricted, secret-free container with public network access. Before pytest imports or test hooks, the host disconnects networking, checks that no network remains, and acknowledges test execution. Tests have a 120-second deadline. **Installation is not offline.** Strict network denial for all repository code requires the explicit local runner with a prebuilt offline wheelhouse/image, or further Actions preparation work. The disconnect-and-test workflow ran on the real hosted slugify baseline and patch jobs; this is not a general sandbox security certification.
 
 The local runner uses non-root execution, no networking, a read-only root, tmpfs, no host mounts/secrets, CPU/memory/process limits and offline dependencies. Set `APP_ENV=local RUNNER_MODE=docker`, prepare `sandbox-image/wheels/`, and build `devpilot-sandbox:py311`. Missing dependencies fail clearly; there is no host-execution fallback.
 
@@ -138,11 +161,13 @@ npm run check:typography --prefix frontend
 npm run test:e2e --prefix frontend
 ```
 
-Playwright smoke tests use mocked API data, run on desktop/mobile, and exercise replay, diff inspection and explicit approval. They are not real-service repair tests. Optional Docker checks require `DEVPILOT_DOCKER_TESTS=1`; opt-in live tests/checklists are described in [VERIFICATION.md](docs/VERIFICATION.md). Local Lighthouse scores, version, scope and raw reports are in [quality evidence](docs/quality/REPORT.md).
+The checked-in Playwright smoke tests use mocked API data, run on desktop/mobile, and exercise replay, diff inspection and explicit approval. They are not real-service repair tests. Separate deployed-browser checks reached the real website and API; their results are recorded in [VERIFICATION.md](docs/VERIFICATION.md). Optional Docker checks require `DEVPILOT_DOCKER_TESTS=1`; opt-in live tests/checklists are described there too. Local Lighthouse scores, version, scope and raw reports are in [quality evidence](docs/quality/REPORT.md).
 
 The new landing page is at `/`, with the focused run form at `/workspace`. See the [landing redesign and measured checks](docs/LANDING-REDESIGN.md); earlier connection fixes are in the [UI polish report](docs/UI-POLISH.md).
 
 ## API and hosting
+
+**Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** The owner authorized Cloudflare Pages, Render and Neon. See [deployment status](docs/DEPLOYMENT.md) for configuration and real verification evidence.
 
 Protected API: runs/list/detail/events, approve/reject/cancel, JSON report, limits, evaluation and repository readiness/issue reads. Public read-only routes: health and recordings. SSE has 15-second heartbeats, Last-Event-ID reconnect and client polling fallback. `/api/health?lightweight=true` supports bounded cold-start probing. Run creation accepts a stable `Idempotency-Key` so a lost response does not create another job.
 

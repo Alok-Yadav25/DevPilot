@@ -76,7 +76,7 @@ export function ReviewChecklist({ run }: { run: Run }) {
       <h3>Review checklist</h3>
       <ul>
         <li>
-          <Check size={16} />
+          {paths.length ? <Check size={16} /> : <Info size={16} />}
           <span>
             <strong>Scope of change</strong>
             {paths.length ? paths.join(", ") : "No validated diff yet"}

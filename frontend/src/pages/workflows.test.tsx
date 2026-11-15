@@ -42,7 +42,7 @@ describe("Run and approval interactions", () => {
       "https://github.com/owner/repo",
     );
     await user.type(
-      screen.getByLabelText(/What’s going wrong/),
+      screen.getByLabelText(/Bug description/),
       "The separator should be a hyphen.",
     );
     await user.click(screen.getByRole("button", { name: /Start run/ }));
@@ -66,7 +66,7 @@ describe("Run and approval interactions", () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
-    expect(screen.getByText(/Scripted events illustrate/)).not.toBeNull();
+    expect(screen.getByText(/No live services/)).not.toBeNull();
   });
   it("records sample approval only after explicit confirmation", async () => {
     const user = userEvent.setup();

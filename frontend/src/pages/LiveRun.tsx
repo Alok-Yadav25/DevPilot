@@ -37,7 +37,8 @@ import { api, elapsed, formatRepo, useHealth } from "../lib/api";
 import { getToken, useUI } from "../lib/store";
 import { makeRecorded } from "../lib/replay";
 import { makeSample } from "../lib/examples";
-import { wait } from "../lib/client";
+import { normalizeWorkerUrl } from "../lib/connection";
+import { followEvents } from "../lib/events";
 import { STEPS, type Run, type RunEvent } from "../lib/types";
 import { FailureExplanation, ReviewChecklist } from "../components/RunReview";
 import { CompareAttempts } from "../components/CompareAttempts";
@@ -212,6 +213,10 @@ export default function LiveRun() {
   const sample = useUI((s) => s.samples.find((r) => r.id === id));
   const updateSample = useUI((s) => s.updateSample);
   const health = useHealth();
+  const apiUrl = useUI((s) => s.apiUrl);
+  const revision = useUI((s) => s.connectionRevision);
+  const connection = { url: apiUrl, token: getToken() };
+  const runPath = `/runs/${encodeURIComponent(id)}`;
   const [tab, setTab] = useState("logs");
   const [reconnecting, setReconnecting] = useState(false);
   const [mobile, setMobile] = useState("output");
@@ -219,19 +224,39 @@ export default function LiveRun() {
     null,
   );
   const [, refresh] = useState(0);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const live = useQuery({
-    queryKey: ["run", id],
-    queryFn: () => api<Run>(`/runs/${id}`),
-    enabled: !/^(sample-|recording-)/.test(id) && !!health.data?.database,
+    queryKey: ["run", apiUrl, revision, id],
+    queryFn: ({ signal }) => api<Run>(runPath, { signal }, connection),
+    enabled:
+      !/^(sample-|recording-)/.test(id) &&
+      !!health.data?.database &&
+      !!connection.token,
     refetchInterval: 3000,
   });
   const run = sample ?? live.data;
+  useEffect(() => {
+    const timeline = timelineRef.current;
+    const activeStep = timeline?.querySelector(".step-active");
+    if (timeline && activeStep) {
+      const bottom = activeStep.getBoundingClientRect().bottom;
+      const visibleBottom = timeline.getBoundingClientRect().bottom;
+      if (bottom > visibleBottom)
+        timeline.scrollTop += bottom - visibleBottom + 16;
+    }
+  }, [run?.events.length, run?.status]);
+
+  useEffect(() => {
+    setAction(null);
+    setTab("logs");
+    setReconnecting(false);
+  }, [id, apiUrl, revision]);
   useEffect(() => {
     if (run?.status === "ready_for_review") {
       setTab("diff");
       setMobile("output");
     }
-  }, [run?.status]);
+  }, [id, apiUrl, revision, run?.status]);
   useEffect(() => {
     const timer = setInterval(() => refresh((x) => x + 1), 1000);
     return () => clearInterval(timer);
@@ -244,60 +269,18 @@ export default function LiveRun() {
     )
       return;
     const controller = new AbortController();
-    async function stream() {
-      let lastId = 0;
-      while (!controller.signal.aborted) {
-        try {
-          const response = await fetch(
-            `${useUI.getState().apiUrl}/api/runs/${id}/events`,
-            {
-              headers: {
-                ...(getToken()
-                  ? { Authorization: `Bearer ${getToken()}` }
-                  : {}),
-                ...(lastId ? { "Last-Event-ID": String(lastId) } : {}),
-              },
-              signal: controller.signal,
-            },
-          );
-          if (!response.ok || !response.body)
-            throw new Error("Stream disconnected");
-          setReconnecting(false);
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          try {
-            while (!controller.signal.aborted) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const chunks = buffer.replaceAll("\r\n", "\n").split("\n\n");
-              buffer = chunks.pop() ?? "";
-              for (const chunk of chunks) {
-                const match = chunk.match(/^id: (\d+)/m);
-                if (match) lastId = Number(match[1]);
-                if (chunk.includes("data:"))
-                  query.invalidateQueries({ queryKey: ["run", id] });
-                if (chunk.includes("event: settled")) return;
-              }
-            }
-          } finally {
-            reader.releaseLock();
-          }
-        } catch {
-          if (controller.signal.aborted) return;
-        }
-        setReconnecting(true);
-        try {
-          await wait(1500 + Math.random() * 1000, controller.signal);
-        } catch {
-          return;
-        }
-      }
-    }
-    stream();
+    void followEvents(`${normalizeWorkerUrl(apiUrl)}/api${runPath}/events`, {
+      token: connection.token,
+      signal: controller.signal,
+      onReconnect: setReconnecting,
+      onEvent: () => {
+        void query.invalidateQueries({
+          queryKey: ["run", apiUrl, revision, id],
+        });
+      },
+    });
     return () => controller.abort();
-  }, [id, run?.mode, run?.status, !!run]);
+  }, [id, apiUrl, revision, run?.mode, run?.status, !!run]);
   const mutation = useMutation({
     mutationFn: async (kind: "approve" | "reject" | "cancel") => {
       if (!run) return;
@@ -312,47 +295,61 @@ export default function LiveRun() {
           finished_at: new Date().toISOString(),
           reason:
             kind === "approve"
-              ? "Walkthrough complete. No branch or PR was created."
-              : "Walkthrough stopped by you.",
+              ? "Playback approved. No PR created."
+              : "Playback stopped.",
         });
         return;
       }
-      return api(`/runs/${id}/${kind}`, {
-        method: "POST",
-        body: JSON.stringify(
-          kind === "approve"
-            ? { diff_sha256: await diffHash(run.final_diff) }
-            : {},
-        ),
-      });
+      return api(
+        `${runPath}/${kind}`,
+        {
+          method: "POST",
+          body: JSON.stringify(
+            kind === "approve"
+              ? { diff_sha256: await diffHash(run.final_diff) }
+              : {},
+          ),
+        },
+        connection,
+      );
     },
     onSuccess: () => {
       setAction(null);
-      query.invalidateQueries({ queryKey: ["run", id] });
+      query.invalidateQueries({ queryKey: ["run", apiUrl, revision, id] });
       query.invalidateQueries({ queryKey: ["runs"] });
-      toast.success("Your decision has been recorded");
+      toast.success("Decision recorded");
     },
     onError: (e) => toast.error(e.message),
   });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
-        e.target instanceof HTMLElement &&
-        e.target.matches("input,textarea,select")
+        action ||
+        document.querySelector('[role="dialog"]') ||
+        e.altKey ||
+        (e.target instanceof HTMLElement &&
+          (e.target.matches("input,textarea,select") ||
+            e.target.isContentEditable))
       )
         return;
-      if (run?.status === "ready_for_review" && !e.metaKey && !e.ctrlKey) {
+      if (
+        run?.status === "ready_for_review" &&
+        !(run.mode === "live" && live.error) &&
+        !e.metaKey &&
+        !e.ctrlKey
+      ) {
         if (e.key.toLowerCase() === "a") setAction("approve");
         if (e.key.toLowerCase() === "r") setAction("reject");
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [run?.status]);
+  }, [run?.status, action, live.error]);
   if (!run)
     return (
       <div className="page">
-        {live.isLoading ? (
+        {live.isLoading ||
+        (!/^(sample-|recording-)/.test(id) && health.isLoading) ? (
           <>
             <div className="skeleton skeleton-heading" />
             <div className="skeleton skeleton-card" />
@@ -360,15 +357,15 @@ export default function LiveRun() {
         ) : (
           <div className="empty-state">
             <GitBranch size={30} />
-            <h1>We couldn’t load this run.</h1>
+            <h1>Run unavailable</h1>
             <p>
               {/^(sample-|recording-)/.test(id)
-                ? "This sample is stored in the browser where it was created. Start a new walkthrough from the overview."
+                ? "Playback not found in this browser. Start a new example."
                 : (live.error?.message ??
-                  "Connect the worker that owns this run, then refresh the page.")}
+                  "Connect the worker that owns this run.")}
             </p>
             <Link className="button button-secondary" to="/">
-              Back to overview
+              Overview
               <ArrowRight size={15} />
             </Link>
           </div>
@@ -386,6 +383,7 @@ export default function LiveRun() {
       )
       .map((e) => e.node),
   );
+  if (["completed", "pr_created"].includes(run.status)) done.add("approval");
   const reviewReady = run.status === "ready_for_review";
   const running = run.status === "running" || run.status === "queued";
   const sampleMode = run.mode !== "live";
@@ -402,7 +400,7 @@ export default function LiveRun() {
     try {
       const report =
         run!.mode === "live"
-          ? await api(`/runs/${id}/report`)
+          ? await api(`${runPath}/report`, undefined, connection)
           : { schema_version: 1, ...run, recording: undefined };
       const a = document.createElement("a");
       a.href = URL.createObjectURL(
@@ -424,9 +422,9 @@ export default function LiveRun() {
   }
   return (
     <div className="page live-page">
-      {reconnecting && (
+      {run.mode === "live" && live.error && (
         <div className="connection-banner" role="status">
-          Reconnecting to live events. Polling for updates continues.
+          Updates paused. Check your worker connection.
         </div>
       )}
       <div className="live-heading">
@@ -447,20 +445,15 @@ export default function LiveRun() {
             <ArrowDownToLine size={16} />
             Report
           </Button>
-          <button
-            className="icon-control"
-            title="Copy run URL"
-            aria-label="Copy run URL"
-            onClick={() => copy(location.href)}
-          >
-            <Copy size={16} />
-          </button>
-          {sampleMode && (
-            <span className="sample-label">
-              {run.mode === "replay"
-                ? "Recorded real run"
-                : "Illustrative sample"}
-            </span>
+          {!sampleMode && (
+            <button
+              className="icon-control"
+              title="Copy run URL"
+              aria-label="Copy run URL"
+              onClick={() => copy(location.href)}
+            >
+              <Copy size={16} />
+            </button>
           )}
           {running && (
             <Button
@@ -484,12 +477,11 @@ export default function LiveRun() {
                 {run.recorded_at
                   ? new Date(run.recorded_at).toLocaleDateString()
                   : ""}{" "}
-                · Playback only. No model or GitHub actions are dispatched.
+                · Playback only.
               </>
             ) : (
               <>
-                <strong>Illustrative sample.</strong> Scripted events illustrate
-                the workflow. No repository, model or sandbox is accessed.
+                <strong>Illustrative sample.</strong> No live services.
               </>
             )}
           </span>
@@ -535,7 +527,7 @@ export default function LiveRun() {
             className={mobile === t ? "active" : ""}
             onClick={() => setMobile(t)}
           >
-            {t === "output" ? "Agent output" : t[0].toUpperCase() + t.slice(1)}
+            {t === "output" ? "Workspace" : t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
@@ -546,11 +538,13 @@ export default function LiveRun() {
           <div className="panel-header">
             <span>
               <GitBranch size={15} />
-              The investigation
+              Progress
             </span>
-            <span className="muted mono">{done.size}/9</span>
+            <span className="muted mono">
+              {done.size}/{STEPS.length}
+            </span>
           </div>
-          <div className="timeline">
+          <div className="timeline" ref={timelineRef}>
             {STEPS.map((step, i) => {
               const complete =
                 done.has(step.id) ||
@@ -578,13 +572,7 @@ export default function LiveRun() {
                   </span>
                   <div>
                     <strong>{step.label}</strong>
-                    <p>{complete ? "Completed" : step.detail}</p>
-                    {isActive && (
-                      <span className="timeline-active-label">
-                        {step.id === "approval" ? "Your turn" : "Working on it"}
-                        <span>•••</span>
-                      </span>
-                    )}
+                    {isActive && <p>{step.detail}</p>}
                   </div>
                 </div>
               );
@@ -601,7 +589,7 @@ export default function LiveRun() {
           <div
             className="output-tabs"
             role="tablist"
-            aria-label="Agent output"
+            aria-label="Workspace"
             onKeyDown={(event) => {
               if (
                 !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
@@ -661,20 +649,27 @@ export default function LiveRun() {
                   <span
                     className={`status-dot ${running ? "green" : "violet"}`}
                   />
-                  {running ? "Streaming events" : "Event log"}
+                  {sampleMode
+                    ? "Playback"
+                    : running
+                      ? "Live activity"
+                      : "Activity"}
                   <span className="muted">· {run.events.length} events</span>
                 </>
               ) : tab === "diff" ? (
                 "UNIFIED DIFF"
               ) : tab === "tests" ? (
                 "PYTEST RESULTS"
+              ) : tab === "workflow" ? (
+                "WORKFLOW"
               ) : (
-                "REVIEW & RISKS"
+                "REVIEW"
               )}
             </span>
             <button
               aria-label={`Copy ${tab}`}
               className="icon-control"
+              disabled={tab === "workflow"}
               onClick={() =>
                 copy(
                   tab === "diff"
@@ -705,11 +700,11 @@ export default function LiveRun() {
           >
             {tab === "logs" ? (
               <>
-                <div className="context-files">
-                  {run.relevant_files.length
-                    ? `In context: ${run.relevant_files.join(", ")}`
-                    : "Relevant files will appear as the agent investigates."}
-                </div>
+                {run.relevant_files.length > 0 && (
+                  <div className="context-files">
+                    {run.relevant_files.join(", ")}
+                  </div>
+                )}
                 <Logs events={run.events} />
               </>
             ) : tab === "workflow" ? (
@@ -728,7 +723,6 @@ export default function LiveRun() {
                     <h2>Review the patch</h2>
                     <p>{run.review}</p>
                     <h3>Test evidence</h3>
-                    <p>{"Inspect the final outcomes in Tests."}</p>
                     <p>
                       {
                         Object.keys(
@@ -741,8 +735,7 @@ export default function LiveRun() {
                     <div className="risk-note">
                       <Info size={16} />
                       <span>
-                        Passing tests do not prove correctness. Check behavior,
-                        edge cases and scope before approving.
+                        Review behavior and edge cases before approving.
                       </span>
                     </div>
                   </aside>
@@ -755,25 +748,15 @@ export default function LiveRun() {
                 <span className="summary-icon">
                   <ShieldCheck size={21} />
                 </span>
-                <h2>A patch you can review</h2>
+                <h2>Review</h2>
                 <ReviewChecklist run={run} />
                 <p className="review-prose">{run.review}</p>
-                <div className="risk-note">
-                  <Info size={15} />
-                  <span>
-                    Passing tests are evidence, not a guarantee. Review behavior
-                    and edge cases before approving.
-                  </span>
-                </div>
               </div>
             ) : (
               <div className="tab-empty">
                 <BookOpen size={27} />
-                <strong>The story behind the fix</strong>
-                <p>
-                  A concise explanation and risk review will appear after
-                  validation.
-                </p>
+                <strong>Review pending</strong>
+                <p>Available after tests pass.</p>
               </div>
             )}
           </div>
@@ -822,7 +805,11 @@ export default function LiveRun() {
           <Button
             variant="secondary"
             size="sm"
-            disabled={!reviewReady || mutation.isPending}
+            disabled={
+              !reviewReady ||
+              mutation.isPending ||
+              (run.mode === "live" && !!live.error)
+            }
             onClick={() => setAction("reject")}
           >
             <X size={14} />
@@ -830,7 +817,11 @@ export default function LiveRun() {
           </Button>
           <Button
             size="sm"
-            disabled={!reviewReady || mutation.isPending}
+            disabled={
+              !reviewReady ||
+              mutation.isPending ||
+              (run.mode === "live" && !!live.error)
+            }
             onClick={() => setAction("approve")}
           >
             <Check size={15} />
@@ -859,7 +850,7 @@ export default function LiveRun() {
         title={
           action === "approve"
             ? sampleMode
-              ? "Complete this walkthrough?"
+              ? "Finish this playback?"
               : run.dry_run
                 ? "Approve this dry-run patch?"
                 : "Approve and open a draft PR?"
@@ -870,12 +861,12 @@ export default function LiveRun() {
         description={
           action === "approve"
             ? sampleMode
-              ? "This records your sample decision locally. No branch, commit, or pull request is created."
+              ? "Saved in this browser only. No PR is created."
               : run.dry_run
-                ? "Your approval is recorded with the reviewed diff. Dry runs do not create branches or pull requests."
-                : "This authorizes DevPilot to push the exact reviewed patch to a new branch and open a draft pull request. Nothing will be merged."
+                ? "Approve this exact diff. No target branch or PR will be created."
+                : "Push the reviewed patch to a new target branch and open a draft PR. Nothing is merged."
             : action === "reject"
-              ? "The patch stays in history for inspection. No branch or pull request will be created."
+              ? "Keep the patch in history without publishing it."
               : "The worker will stop at its next cancellation check and remove its sandbox."
         }
       >

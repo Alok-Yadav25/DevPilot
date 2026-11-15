@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   ChevronRight,
-  Clock3,
   Filter,
   Github,
   History as HistoryIcon,
@@ -26,7 +25,8 @@ export default function History() {
   const [confirm, setConfirm] = useState(false);
   const samples = useUI((s) => s.samples);
   const clear = useUI((s) => s.clearSamples);
-  const { data: live = [], isLoading } = useRuns();
+  const { data: live = [], isLoading, error } = useRuns();
+  const connect = useUI((s) => s.setConnectionOpen);
   const all = [...live, ...samples].sort((a, b) =>
     b.created_at.localeCompare(a.created_at),
   );
@@ -51,40 +51,17 @@ export default function History() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">EVERY ATTEMPT HAS A STORY</div>
-          <h1>
-            Your run history<span className="heading-dot">.</span>
-          </h1>
-          <p>
-            Trace the investigation. Revisit the evidence. Review what comes
-            next.
-          </p>
+          <h1>History</h1>
         </div>
         <Button onClick={() => navigate("/new")}>
           <Plus size={16} />
           New run
         </Button>
       </div>
-      {all.length > 0 && (
-        <div className="history-summary">
-          <div>
-            <strong>{all.length}</strong>
-            <span>Loaded items</span>
-          </div>
-          <div>
-            <strong>
-              {all.filter((r) => r.status === "ready_for_review").length}
-            </strong>
-            <span>Need your review</span>
-          </div>
-          <div>
-            <strong>{live.length}</strong>
-            <span>Live runs</span>
-          </div>
-          <div>
-            <strong>{samples.length}</strong>
-            <span>Local playbacks</span>
-          </div>
+      {error && (
+        <div className="connection-banner" role="alert">
+          <span>Worker history unavailable. {error.message}</span>
+          <button onClick={() => connect(true)}>Connection settings</button>
         </div>
       )}
       <div className="panel history-panel">
@@ -168,12 +145,16 @@ export default function History() {
               <h2>
                 {search || filter !== "all"
                   ? "No runs match this view"
-                  : "A clean slate. A fresh start."}
+                  : error
+                    ? "Live history unavailable"
+                    : "No runs yet"}
               </h2>
               <p>
                 {search || filter !== "all"
                   ? "Try a different search or reset your filters."
-                  : "Your live runs and sample walkthroughs will appear here."}
+                  : error
+                    ? "Check your worker connection, then reload history."
+                    : "Start a run or try an example."}
               </p>
               <Button
                 variant="secondary"
@@ -195,17 +176,13 @@ export default function History() {
           <span>
             {runs.length} of {all.length} runs
           </span>
-          <span>
-            <Clock3 size={12} /> Playbacks are saved locally; live history and
-            original recordings stay on the worker.
-          </span>
         </div>
       </div>
       <Dialog
         open={confirm}
         onOpenChange={setConfirm}
         title="Clear local playbacks?"
-        description="This removes playback copies saved in this browser. Original recordings and live worker history are unaffected."
+        description="This removes playback copies saved in this browser. Worker history stays unchanged."
       >
         <div className="dialog-footer">
           <Button variant="secondary" onClick={() => setConfirm(false)}>

@@ -119,6 +119,11 @@ test("illustrative run shows patch and requires explicit keyboard approval", asy
   await page.keyboard.press("Enter");
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
   expect(mutations).toEqual([]);
+  if (info.project.name === "mobile")
+    await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await expect(page.getByText("9/9", { exact: true })).toBeVisible();
+  if (info.project.name === "mobile")
+    await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.screenshot({
     path: info.outputPath("review.png"),
     fullPage: true,
@@ -151,4 +156,143 @@ test("recorded replay keeps evidence and never dispatches a provider action", as
     .click();
   await expect(page.getByText("Rejected", { exact: true })).toBeVisible();
   expect(mutations).toEqual([]);
+});
+
+test("navigation, theme and connection errors stay usable", async ({
+  page,
+}, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  async function navigation() {
+    if (info.project.name === "mobile")
+      await page.getByRole("button", { name: "Open navigation" }).click();
+  }
+  await navigation();
+  await page.getByRole("link", { name: "History", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "History", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("/");
+  await expect(
+    page.getByRole("textbox", { name: "Search runs" }),
+  ).toBeFocused();
+  await page.getByRole("textbox", { name: "Search runs" }).fill("no-match");
+  await expect(
+    page.getByRole("heading", { name: "No runs match this view" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Reset filters" }).click();
+  await navigation();
+  await page.getByRole("link", { name: "Evaluation", exact: true }).click();
+  await expect(
+    page.getByText("No live results yet", { exact: true }),
+  ).toBeVisible();
+  await navigation();
+  await page.getByRole("link", { name: "How it works", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "How it works", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Requirements & limits", { exact: true }).click();
+  await expect(
+    page.getByText(/Actions dependency preparation uses public downloads/),
+  ).toBeVisible();
+  await navigation();
+  await page.getByRole("button", { name: "Replay mode", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "API address" })
+    .fill("https://invalid-worker.example");
+  await page.getByLabel("Worker access token").fill("fake-worker-credential");
+  await page.route("https://invalid-worker.example/api/**", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        detail: "Invalid worker token. Check your settings.",
+      }),
+    }),
+  );
+  await page.getByRole("button", { name: "Test & save" }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Invalid worker token. Check your settings.",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("devpilot-workspace-v1")!).state.apiUrl,
+    ),
+  ).toBe("");
+  expect(errors).toEqual([]);
+  await page.screenshot({
+    path: info.outputPath("about-light.png"),
+    fullPage: true,
+  });
+});
+
+test("worker errors do not masquerade as empty history or evaluation results", async ({
+  page,
+}, info) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("devpilot-api-token", "fake-worker-credential"),
+  );
+  await page.route("**/api/health", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ready: true,
+        database: true,
+        runner: "github_actions",
+      }),
+    }),
+  );
+  for (const path of ["runs", "eval"]) {
+    await page.route(`**/api/${path}`, (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Database temporarily unavailable." }),
+      }),
+    );
+  }
+  await page.goto("/runs");
+  await expect(page.getByRole("alert")).toContainText(
+    "Worker history unavailable",
+  );
+  await expect(
+    page.getByRole("heading", { name: "No runs yet", exact: true }),
+  ).toHaveCount(0);
+  if (info.project.name === "mobile")
+    await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("link", { name: "Evaluation", exact: true }).click();
+  await expect(
+    page.getByText("Results unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Export results" }),
+  ).toBeDisabled();
+});
+
+test("mobile navigation supports Escape and keeps hidden links out of focus", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "mobile", "Mobile drawer interaction");
+  await page.goto("/");
+  const menu = page.getByRole("button", { name: "Open navigation" });
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).not.toBeVisible();
+  await menu.click();
+  await expect(page.getByRole("link", { name: "DevPilot home" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: /Shortcuts/ })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "DevPilot home" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeFocused();
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
 });

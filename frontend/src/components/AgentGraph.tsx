@@ -79,25 +79,23 @@ export default function AgentGraph({ run }: { run: Run }) {
       })),
     [active, run.events.length],
   );
-  const edges = definitions
-    .slice(0, -1)
-    .map((d, i) => ({
-      id: `${d.id}-${definitions[i + 1].id}`,
-      source: d.id,
-      target: definitions[i + 1].id,
-      type: "smoothstep",
-      animated: done.has(d.id) && active === definitions[i + 1].id,
-      style: {
-        stroke: done.has(d.id) ? "#7762ce" : "#303444",
-        strokeWidth: 1.4,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: done.has(d.id) ? "#7762ce" : "#303444",
-        width: 14,
-        height: 14,
-      },
-    }));
+  const edges = definitions.slice(0, -1).map((d, i) => ({
+    id: `${d.id}-${definitions[i + 1].id}`,
+    source: d.id,
+    target: definitions[i + 1].id,
+    type: "smoothstep",
+    animated: done.has(d.id) && active === definitions[i + 1].id,
+    style: {
+      stroke: done.has(d.id) ? "#7762ce" : "#303444",
+      strokeWidth: 1.4,
+    },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: done.has(d.id) ? "#7762ce" : "#303444",
+      width: 14,
+      height: 14,
+    },
+  }));
   edges.push({
     id: "retry",
     source: "test",

@@ -1,16 +1,13 @@
 import {
   ArrowDownToLine,
-  ArrowRight,
   Check,
   CircleDashed,
   FlaskConical,
-  Info,
   ShieldCheck,
   Target,
   TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { useEvaluation } from "../lib/api";
 import catalog from "../lib/evaluation-cases.json";
@@ -22,7 +19,7 @@ const categories = [
   "Numeric logic",
 ];
 export default function Evaluation() {
-  const { data, isLoading } = useEvaluation();
+  const { data, isLoading, error } = useEvaluation();
   const [category, setCategory] = useState("All cases");
   const [status, setStatus] = useState("all");
   const cases =
@@ -65,13 +62,9 @@ export default function Evaluation() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">EVIDENCE OVER PROMISES</div>
-          <h1>
-            How good is the agent, really<span className="heading-dot">?</span>
-          </h1>
-          <p>Reproducible cases. Every attempt counted. Failures included.</p>
+          <h1>Evaluation</h1>
         </div>
-        <Button variant="secondary" onClick={download}>
+        <Button variant="secondary" onClick={download} disabled={!!error}>
           <ArrowDownToLine size={15} />
           Export results
         </Button>
@@ -81,14 +74,21 @@ export default function Evaluation() {
           <FlaskConical size={21} />
         </span>
         <div>
-          <strong>No inflated benchmarks.</strong>
+          <strong>
+            {error
+              ? "Results unavailable"
+              : data?.executed
+                ? "Measured results"
+                : "No live results yet"}
+          </strong>
           <p>
-            {data?.executed
-              ? `${data.executed} real evaluation runs are recorded on your worker. Sample walkthroughs are excluded.`
-              : "No live evaluation runs have been recorded yet. Walkthroughs and controller tests never count as autonomous repairs."}
+            {error
+              ? "Check your worker connection and retry. Local cases are shown below."
+              : data?.executed
+                ? `${data.executed} cases evaluated. Illustrative samples are excluded.`
+                : "Illustrative samples and mocked tests do not count."}
           </p>
         </div>
-        <span className="tag">TRANSPARENT BY DESIGN</span>
       </div>
       {!!data?.executed && (
         <div className="stat-grid evaluation-stats">
@@ -131,11 +131,8 @@ export default function Evaluation() {
       )}
       <div className="section-heading">
         <div>
-          <h2>The evaluation set</h2>
-          <p>
-            Focused Python bugs across five categories. Test files remain
-            protected.
-          </p>
+          <h2>Test cases</h2>
+          <p>25 injected Python bugs.</p>
         </div>
         <span className="muted small">Python 3.11 · pytest</span>
       </div>
@@ -211,27 +208,15 @@ export default function Evaluation() {
         </div>
         <div className="table-footer">
           <span>{filtered.length} cases</span>
-          <span>Walkthroughs excluded · Results come from your worker</span>
         </div>
       </div>
-      <div className="methodology panel">
-        <span className="methodology-icon">
-          <Info size={21} />
-        </span>
-        <div>
-          <h3>What counts as a successful repair?</h3>
-          <p>
-            A real model-generated patch must pass the complete pytest suite in
-            Docker, preserve the test inventory, and address the intended bug.
-            Each report records the model, commit, attempts, diff, and test
-            evidence. A human still reviews correctness.
-          </p>
-          <Link className="text-link" to="/about">
-            Read about the safety model
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-      </div>
+      <details className="execution-details panel">
+        <summary>How results are measured</summary>
+        <p>
+          Real API runs only. A passing repair preserves the test inventory and
+          passes pytest. Correctness still needs review.
+        </p>
+      </details>
     </div>
   );
 }

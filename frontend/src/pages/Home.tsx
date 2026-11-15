@@ -14,12 +14,12 @@ export function RecordedRuns() {
   const start = useUI((s) => s.startRecorded);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  if (!recordings.data?.length) return null;
   return (
     <section className="recordings-section">
       <div className="section-heading">
         <div>
           <h2>Recorded runs</h2>
-          <p>Replay saved investigations with their original test evidence.</p>
         </div>
       </div>
       {recordings.data?.length ? (
@@ -59,15 +59,7 @@ export function RecordedRuns() {
             </button>
           ))}
         </div>
-      ) : (
-        <p className="field-help">
-          {recordings.error
-            ? "Connect the worker to load real recordings. Illustrative examples work locally."
-            : recordings.isLoading
-              ? "Loading recordings…"
-              : "No recorded real runs yet. Illustrative examples are available below."}
-        </p>
-      )}
+      ) : null}
       {error && (
         <p role="alert" className="inline-error">
           {error}
@@ -80,14 +72,11 @@ export default function Home() {
   const [examples, setExamples] = useState(false);
   const runsQuery = useRuns();
   const runs = runsQuery.data ?? [];
-  const approvals = runs.filter((run) => run.approved).length;
   return (
     <div className="page home-page workspace-overview">
       <header className="page-heading">
         <div>
-          <div className="eyebrow">WORKSPACE</div>
-          <h1>What are we fixing?</h1>
-          <p>Start with a Python repository and a reproducible bug.</p>
+          <h1>Fix a bug</h1>
         </div>
         <Button
           variant="secondary"
@@ -102,7 +91,7 @@ export default function Home() {
           <div className="section-heading">
             <div>
               <h2>Illustrative examples</h2>
-              <p>Scripted walkthroughs. No real repository or model is used.</p>
+              <p>Scripted samples. No live services.</p>
             </div>
           </div>
           <ExampleCards compact />
@@ -113,18 +102,15 @@ export default function Home() {
         <div className="section-heading">
           <div>
             <h2>Recent runs</h2>
-            <p>
-              {runs.length
-                ? `${runs.length} loaded live runs · Approval rate ${Math.round((approvals / runs.length) * 100)}%`
-                : "Your investigations and decisions will appear here."}
-            </p>
           </div>
           <Link className="text-link" to="/runs">
             View history <ArrowRight size={16} />
           </Link>
         </div>
         <div className="panel recent-runs">
-          {runs.length ? (
+          {runsQuery.isLoading ? (
+            <div className="skeleton skeleton-card" />
+          ) : runs.length ? (
             runs.slice(0, 5).map((run) => (
               <Link className="run-row" key={run.id} to={`/run/${run.id}`}>
                 <span>
@@ -143,13 +129,12 @@ export default function Home() {
             <div className="recent-empty">
               <div>
                 <h3>
-                  {runsQuery.data
-                    ? "No runs yet"
-                    : "Connect your worker to load history"}
+                  {runsQuery.error
+                    ? "History unavailable. Check your worker connection."
+                    : runsQuery.data
+                      ? "No runs yet"
+                      : "Connect a worker to see your runs"}
                 </h3>
-                <p>
-                  Start an investigation above, or try an illustrative example.
-                </p>
               </div>
             </div>
           )}

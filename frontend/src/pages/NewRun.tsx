@@ -1,19 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import * as Switch from "@radix-ui/react-switch";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Code2,
-  Github,
-  Info,
-  LoaderCircle,
-  LockKeyhole,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-} from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowLeft, ArrowRight, Github, LoaderCircle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
@@ -34,23 +22,22 @@ export default function NewRun({ embedded = false }: { embedded?: boolean }) {
   const [error, setError] = useState("");
   const [readiness, setReadiness] = useState("");
   const readinessCheck = useMutation({
-    mutationFn: () =>
+    mutationFn: (requestedRepo: string) =>
       api<{ supported: string; repo_url: string }>("/repos/validate", {
         method: "POST",
-        body: JSON.stringify({ repo_url: repo }),
+        body: JSON.stringify({ repo_url: requestedRepo }),
       }),
     onSuccess: (data) => {
       const normalize = (url: string) =>
         url.replace(/\/$/, "").replace(/\.git$/, "");
       if (normalize(data.repo_url) === normalize(currentRepo.current))
-        setReadiness(
-          `Ready for ${data.supported}. The runner still checks installation and tests.`,
-        );
+        setReadiness("Repository checks passed. Tests run after you start.");
     },
-    onError: (error) => setReadiness(error.message),
+    onError: (error, requestedRepo) => {
+      if (requestedRepo === currentRepo.current) setReadiness(error.message);
+    },
   });
   const health = useHealth();
-  const connected = health.data?.ready;
   const connect = useUI((s) => s.setConnectionOpen);
   const mutation = useMutation({
     mutationFn: () =>
@@ -77,6 +64,7 @@ export default function NewRun({ embedded = false }: { embedded?: boolean }) {
   });
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (mutation.isPending) return;
     setError("");
     if (
       !/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+\/?$/.test(repo)
@@ -92,245 +80,166 @@ export default function NewRun({ embedded = false }: { embedded?: boolean }) {
       );
       return;
     }
-    if (!connected && !getToken()) {
+    if (!getToken()) {
       connect(true);
+      return;
+    }
+    if (expected.split("\n").filter((line) => line.trim()).length > 20) {
+      setError("Use at most 20 failing test IDs.");
       return;
     }
     mutation.mutate();
   }
   return (
-    <motion.div
-      className={embedded ? "embedded-run" : "page new-run-page"}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
+    <div className={embedded ? "embedded-run" : "page new-run-page"}>
       {!embedded && (
         <>
           <Link className="back-link" to="/">
-            <ArrowLeft size={14} />
-            Back to overview
+            <ArrowLeft size={16} />
+            Overview
           </Link>
-          <div className="page-heading">
+          <header className="page-heading">
             <div>
-              <div className="eyebrow">GIVE YOUR AGENT A MISSION</div>
-              <h1>
-                A bug in. A reviewable fix out
-                <span className="heading-dot">.</span>
-              </h1>
-              <p>A little context is all it takes to get started.</p>
+              <h1>New run</h1>
             </div>
-            <span className="heading-chip">
-              <Code2 size={14} />
-              Python + pytest
-            </span>
-          </div>
+          </header>
         </>
       )}
-      <div className="new-run-layout">
-        <form className="panel run-form" onSubmit={submit}>
-          {!embedded && (
-            <div className="form-section-title">
-              <span className="number-circle">01</span>
-              <h2>Point us at the problem</h2>
-            </div>
-          )}
-          <label className="field-label" htmlFor="repo">
-            GitHub repository<span>Required</span>
-          </label>
-          <div className="input-with-icon">
-            <Github size={17} />
-            <input
-              className="input"
-              type="url"
-              id="repo"
-              required
-              placeholder="https://github.com/owner/repository"
-              value={repo}
-              onChange={(e) => {
-                setRepo(e.target.value);
-                setReadiness("");
-              }}
-            />
-            <button
-              type="button"
-              className="readiness-check"
-              disabled={!repo || readinessCheck.isPending}
-              onClick={() => {
-                setReadiness("");
-                readinessCheck.mutate();
-              }}
-            >
-              {readinessCheck.isPending ? "Checking…" : "Check readiness"}
-            </button>
-          </div>
-          {readiness && (
-            <p
-              role="status"
-              className={`readiness-result ${readinessCheck.isError ? "text-error" : "text-success"}`}
-            >
-              {readiness}
-            </p>
-          )}
-          <p className="field-help">
-            A Python repository with pytest and requirements.txt or
-            pyproject.toml.
-          </p>
-          <label className="field-label" htmlFor="issue">
-            What’s going wrong?<span>Required</span>
-          </label>
-          <textarea
-            className="input textarea"
-            id="issue"
-            required
-            minLength={8}
-            maxLength={16000}
-            placeholder="Describe the expected behavior, what happens instead, and how to reproduce it. A failing test name or traceback helps."
-            value={issue}
-            onChange={(e) => setIssue(e.target.value)}
-          />
-          <div className="textarea-foot">
-            <span>Clear context makes for a better fix.</span>
-            <span>{issue.length.toLocaleString()} / 16,000</span>
-          </div>
-          <details className="advanced-options">
-            <summary>Advanced options</summary>
-            <label className="field-label" htmlFor="expected">
-              Expected failing tests<span>Optional</span>
+      <div className="new-run-layout simple-run-layout">
+        <form
+          className="panel run-form"
+          onSubmit={submit}
+          aria-label="Start a run"
+        >
+          <fieldset className="run-fields" disabled={mutation.isPending}>
+            <label className="field-label" htmlFor="repo">
+              GitHub repository
             </label>
-            <input
-              className="input mono-input"
-              id="expected"
-              placeholder="tests/test_example.py::test_expected_behavior"
-              value={expected}
-              onChange={(e) => setExpected(e.target.value)}
-            />
-            <p className="field-help">
-              An exact test ID helps the agent stop if unrelated tests fail.
-            </p>
-          </details>
-          <div className="form-divider" />
-          <div className="dry-run-control">
-            <span className="dry-run-icon">
-              <ShieldCheck size={21} />
-            </span>
-            <label htmlFor="dry-run">
-              <strong>Dry run</strong>
-              <small>
-                Generate and test a patch without opening a pull request.
-              </small>
-            </label>
-            <Switch.Root
-              className="switch"
-              id="dry-run"
-              aria-label="Dry run"
-              checked={dry}
-              onCheckedChange={setDry}
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
-          </div>
-          {!dry && (
-            <div className="notice">
-              <LockKeyhole size={16} />
-              <span>
-                DevPilot will still wait for your explicit approval before
-                pushing a target branch or opening a PR.
-              </span>
-            </div>
-          )}
-          {!connected && (
-            <div className="worker-notice">
-              <span className="status-dot amber" />
-              <span>A worker is needed for live runs.</span>
-              <button type="button" onClick={() => connect(true)}>
-                Connect worker
-                <ArrowRight size={13} />
+            <div className="input-with-icon">
+              <Github size={17} />
+              <input
+                className="input"
+                type="url"
+                id="repo"
+                required
+                aria-describedby="repo-help"
+                placeholder="https://github.com/owner/repository"
+                value={repo}
+                onChange={(e) => {
+                  setRepo(e.target.value);
+                  setReadiness("");
+                }}
+              />
+              <button
+                type="button"
+                className="readiness-check"
+                aria-label="Check repository readiness"
+                disabled={!repo || readinessCheck.isPending}
+                onClick={() => {
+                  setReadiness("");
+                  if (!getToken()) {
+                    connect(true);
+                    return;
+                  }
+                  readinessCheck.mutate(repo);
+                }}
+              >
+                {readinessCheck.isPending ? "Checking…" : "Check"}
               </button>
             </div>
-          )}
-          {error && (
-            <div className="inline-error" role="alert">
-              {error}
-            </div>
-          )}
-          <div className="run-form-footer">
-            <span>
-              <LockKeyhole size={13} />
-              Your repository stays yours.
-            </span>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? (
-                <LoaderCircle size={16} className="spin" />
-              ) : (
-                <Zap size={16} />
-              )}
-              Start run
-              <ArrowRight size={15} />
-            </Button>
-          </div>
-        </form>
-        {!embedded && (
-          <aside className="run-explainer">
-            <div className="panel">
-              <span className="explainer-icon">
-                <Sparkles size={22} />
-              </span>
-              <h3>Here’s what happens next</h3>
-              <p>Your agent works through a deliberate, visible process.</p>
-              <ol>
-                {[
-                  ["Reproduce", "Clone the repo and run the baseline twice."],
-                  [
-                    "Investigate",
-                    "Trace the failure and explain the likely cause.",
-                  ],
-                  ["Patch & test", "Make a small change. Run the full suite."],
-                  ["Hand it back", "You review the diff, evidence, and risks."],
-                ].map(([title, description], i) => (
-                  <li key={title}>
-                    <span>{i + 1}</span>
-                    <div>
-                      <strong>{title}</strong>
-                      <p>{description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <div className="explainer-footer">
-                <ShieldCheck size={17} />
-                <span>
-                  Tests run offline. No secrets.
-                  <br />
-                  No automatic merge.
-                </span>
-              </div>
-            </div>
-            <div className="expectations">
-              <Info size={16} />
-              <p>
-                Best for small, reproducible Python bugs. Network-dependent
-                tests stop with a clear explanation. Actions dependency
-                preparation uses public downloads before test networking is
-                disabled.
+            <p className="field-help" id="repo-help">
+              Public Python 3.11 repository with pytest.
+            </p>
+            {readiness && (
+              <p
+                role="status"
+                className={`readiness-result ${readinessCheck.isError ? "text-error" : "text-success"}`}
+              >
+                {readiness}
               </p>
+            )}
+            <label className="field-label" htmlFor="issue">
+              Bug description
+            </label>
+            <textarea
+              className="input textarea"
+              id="issue"
+              required
+              minLength={8}
+              maxLength={16000}
+              placeholder="Expected behavior, actual result, or a failing test."
+              value={issue}
+              onChange={(e) => setIssue(e.target.value)}
+            />
+            {issue.length > 14000 && (
+              <div className="textarea-foot">
+                <span>{issue.length.toLocaleString()} / 16,000</span>
+              </div>
+            )}
+            <details className="advanced-options">
+              <summary>Options</summary>
+              <label className="field-label" htmlFor="expected">
+                Failing tests <span>Optional</span>
+              </label>
+              <textarea
+                className="input mono-input"
+                rows={2}
+                id="expected"
+                maxLength={4000}
+                spellCheck={false}
+                placeholder="tests/test_example.py::test_behavior"
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+              />
+              <p className="field-help">
+                One pytest node ID per line. Maximum 20.
+              </p>
+            </details>
+            <div className="form-divider" />
+            <div className="dry-run-control">
+              <label htmlFor="dry-run">
+                <strong>Dry run</strong>
+                <small>No pull request.</small>
+              </label>
+              <Switch.Root
+                className="switch"
+                id="dry-run"
+                aria-label="Dry run"
+                checked={dry}
+                onCheckedChange={setDry}
+              >
+                <Switch.Thumb className="switch-thumb" />
+              </Switch.Root>
             </div>
-          </aside>
-        )}
+            {!dry && (
+              <p className="field-help">
+                A draft PR opens only after your approval.
+              </p>
+            )}
+            {error && (
+              <div className="inline-error" role="alert">
+                {error}
+              </div>
+            )}
+            <div className="run-form-footer">
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? (
+                  <LoaderCircle size={16} className="spin" />
+                ) : null}
+                {mutation.isPending ? "Starting…" : "Start run"}
+                <ArrowRight size={16} />
+              </Button>
+            </div>
+          </fieldset>
+        </form>
       </div>
       {!embedded && (
-        <section className="examples-section">
-          <div className="section-heading">
-            <div>
-              <h2>Just looking around?</h2>
-              <p>
-                Try an interactive example. No repository access or API key
-                needed.
-              </p>
-            </div>
-          </div>
+        <details className="examples-disclosure">
+          <summary>Try an example</summary>
+          <p className="field-help">Illustrative samples. No live services.</p>
           <ExampleCards compact />
-        </section>
+        </details>
       )}
-    </motion.div>
+    </div>
   );
 }

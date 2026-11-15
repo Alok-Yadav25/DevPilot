@@ -26,6 +26,10 @@ These checks reached actual deployed services, not mocks. They do **not** verify
 | Public recordings | 200; **zero recordings** |
 | Frontend-origin preflight | 200; exact Cloudflare origin allowed |
 | Untrusted-origin preflight | 400; no allowed-origin response header |
+| Live desktop and mobile browser smoke | Landing, workspace, real API health, illustrative demo and Diff tab pass; no horizontal overflow or JavaScript runtime errors |
+| Returning visitor with old empty worker address | Automatically uses deployed API; saved theme preserved |
+
+Frontend deployment [78098d2e](https://78098d2e.devpilot-alokyadav25.pages.dev) uses source `8ab0e8bb94e156bc7d859ee8e752aabbbd1ca61d`. Its [GitHub secret scan](https://github.com/Alok-Yadav25/DevPilot/actions/runs/43747669761) passed. Browser checks used a separate headless browser against the real public frontend and API, without mocked responses. The demo remains explicitly illustrative; it is not a repair test.
 
 HTTP evidence was collected at `2026-11-15T18:31:58Z` (November 16 in India). Private operator evidence is stored under ignored `.devpilot/deploy/`; credentials and database URLs are not published.
 

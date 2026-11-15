@@ -27,7 +27,7 @@ npm run build
 PLAYWRIGHT_CHROMIUM_EXECUTABLE='/path/to/chrome' npm run audit:quality
 ```
 
-`DEVPILOT_LIGHTHOUSE_MODULE` can select a different external Lighthouse module. The script measures three desktop trials per route against a local production build and mocked API. The run screen uses an illustrative fixture. Every trial is retained in `../docs/quality/lighthouse/`; the report states the version, scope and variability. This is not a hosted or real-provider benchmark.
+`DEVPILOT_LIGHTHOUSE_MODULE` can select a different external Lighthouse module. Set `DEVPILOT_QUALITY_OUTPUT` to retain a separate audit snapshot. The script measures three desktop trials per route against a local production build and mocked API. The run screen uses an illustrative fixture. Every trial is retained in `../docs/quality/lighthouse/`; the report states the version, scope and variability. This is not a hosted or real-provider benchmark.
 
 See the parent [README](../README.md), [quality evidence](../docs/quality/REPORT.md) and [live verification checklist](../docs/VERIFICATION.md).
 

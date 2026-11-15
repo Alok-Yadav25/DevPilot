@@ -8,10 +8,10 @@ These results describe local code and browser checks. **No real GitHub/Groq repa
 | --- | --- | --- |
 | Backend default pytest | 152 passed, 5 skipped, 1 live test deselected | Local unit/controller/in-process checks; provider HTTP and model/test outcomes are mocked |
 | Ruff / mypy | Passed; 44 app source files type-checked | Local static checks |
-| Frontend tests | 27 passed | Vitest 5.1.0; fixtures, mocked fetch and fake timers |
+| Frontend tests | 42 passed | Vitest 5.1.0; fixtures, mocked fetch and fake timers |
 | Frontend production build | Passed | React 18 / Vite 6 |
 | Typography check | Passed | No authored text sizes below 12px |
-| Playwright | 6 passed across desktop 1440×900 and mobile 390×844 | Mocked API and fixture playback, including explicit keyboard approval |
+| Playwright | 11 passed, 1 mobile-only test skipped on desktop | Desktop 1440×900 and mobile 390×844; mocked API, fixture playback, approval, navigation, theme, worker failures and mobile focus |
 | SQLite migrations | Upgrade through 0004 passed | Local migration smoke check; Postgres has not been tested live |
 | Gitleaks | 0 findings in available root/frontend refs and a 184-file working-source snapshot | Redacted local scans; ignored environments excluded; no remote refs fetched |
 | npm application dependency audit | 0 reported vulnerabilities | After removing optional Lighthouse dependencies from the application tree |
@@ -22,6 +22,8 @@ The API-to-Actions integration test uses the actual service, factory, adapter, a
 Additional regressions cover node-boundary power loss (including retry), lease expiry/terminal preservation, remote reattachment without a second dispatch, lost PR-response reconciliation, idempotent run creation (including simultaneous retries), slow readiness without duplicate mutation, redacted logs/errors, cancellation cleanup before target-policy checks, old-schema health failure and approval-bound report export.
 
 ## Lighthouse
+
+A later minimal-workspace snapshot records 100/99/99 performance and 100 accessibility across three trials per route. Its scope, timing and remaining limitations are documented in [UI polish report](../UI-POLISH.md), with [separate raw reports](polish-lighthouse/summary.json). The table below retains the earlier measurements.
 
 Actual local Lighthouse 10.1.1 measurements using Chrome 157, the desktop preset, a persistent warm browser profile and a production static build with a mocked API. The run route uses an **illustrative sample**; history includes that local sample. These are not hosted, mobile, cold-cache, cold-server or real-provider measurements. The older audit version limits comparison with current Lighthouse releases and does not replace manual screen-reader testing.
 

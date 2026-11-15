@@ -124,7 +124,7 @@ GROQ_KEY_ROTATION_CONFIRMED=1 uv run python scripts/evaluate.py \
   --manifest .devpilot/evaluation-repos/manifest.json --case case-01
 ```
 
-No approval or PR is issued by evaluation. The driver records passing/failed results, attempts, duration, model, commit, stop reason and remote evidence. Commit mismatches fail the case. Old result rows without provenance do not become measured repairs. **Repair success** appears only after real API evaluation records exist; **Approval rate** is a separate count of human approvals among the loaded live runs.
+No approval or PR is issued by evaluation. The driver records passing/failed results, attempts, duration, model, commit, stop reason and remote evidence. Commit mismatches fail the case. Old result rows without provenance do not become measured repairs. **Repair success** appears only after real API evaluation records exist. Human approval is recorded separately and does not count as measured repair success.
 
 ```sh
 uv run pytest -q                    # excludes @pytest.mark.live
@@ -137,6 +137,8 @@ npm run test:e2e --prefix frontend
 ```
 
 Playwright smoke tests use mocked API data, run on desktop/mobile, and exercise replay, diff inspection and explicit approval. They are not real-service repair tests. Optional Docker checks require `DEVPILOT_DOCKER_TESTS=1`; opt-in live tests/checklists are described in [VERIFICATION.md](docs/VERIFICATION.md). Local Lighthouse scores, version, scope and raw reports are in [quality evidence](docs/quality/REPORT.md).
+
+The latest local UI audit, connection fixes and remaining gaps are in [UI polish report](docs/UI-POLISH.md).
 
 ## API and hosting
 

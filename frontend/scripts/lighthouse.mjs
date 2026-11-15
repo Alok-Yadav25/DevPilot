@@ -15,7 +15,9 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import ts from "typescript";
 const root = resolve("dist"),
-  output = resolve("../docs/quality/lighthouse");
+  output = resolve(
+    process.env.DEVPILOT_QUALITY_OUTPUT || "../docs/quality/lighthouse",
+  );
 await mkdir(output, { recursive: true });
 const mime = {
   ".html": "text/html",
@@ -69,7 +71,11 @@ try {
   const modulePath =
     process.env.DEVPILOT_LIGHTHOUSE_MODULE ||
     resolve("../.devpilot/quality-tools/node_modules/lighthouse/core/index.js");
-  await access(modulePath).catch(() => { throw new Error("Install the optional Lighthouse tool into .devpilot/quality-tools first; see frontend/README.md."); });
+  await access(modulePath).catch(() => {
+    throw new Error(
+      "Install the optional Lighthouse tool into .devpilot/quality-tools first; see frontend/README.md.",
+    );
+  });
   const { default: lighthouse } = await import(
     modulePath ? pathToFileURL(resolve(modulePath)).href : "lighthouse"
   );

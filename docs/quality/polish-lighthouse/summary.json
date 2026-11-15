@@ -1,0 +1,107 @@
+{
+  "scope": "Local production build, Lighthouse 10.1.1 desktop preset, persistent warm profile, mocked API; live-run is an illustrative sample. Three trials retained; not a real repair or hosted/cold-start measurement.",
+  "results": [
+    {
+      "page": "overview",
+      "performance_median": 100,
+      "accessibility_median": 100,
+      "trials": [
+        {
+          "page": "overview",
+          "trial": 1,
+          "performance": 100,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:33:56.562Z",
+          "failures": []
+        },
+        {
+          "page": "overview",
+          "trial": 2,
+          "performance": 100,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:25.400Z",
+          "failures": []
+        },
+        {
+          "page": "overview",
+          "trial": 3,
+          "performance": 100,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:54.006Z",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "page": "live-run",
+      "performance_median": 99,
+      "accessibility_median": 100,
+      "trials": [
+        {
+          "page": "live-run",
+          "trial": 1,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:06.387Z",
+          "failures": []
+        },
+        {
+          "page": "live-run",
+          "trial": 2,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:34.954Z",
+          "failures": []
+        },
+        {
+          "page": "live-run",
+          "trial": 3,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:35:03.494Z",
+          "failures": []
+        }
+      ]
+    },
+    {
+      "page": "history",
+      "performance_median": 99,
+      "accessibility_median": 100,
+      "trials": [
+        {
+          "page": "history",
+          "trial": 1,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:15.833Z",
+          "failures": []
+        },
+        {
+          "page": "history",
+          "trial": 2,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:34:44.459Z",
+          "failures": []
+        },
+        {
+          "page": "history",
+          "trial": 3,
+          "performance": 99,
+          "accessibility": 100,
+          "lighthouse_version": "10.1.1",
+          "observed_at": "2026-11-15T05:35:12.965Z",
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

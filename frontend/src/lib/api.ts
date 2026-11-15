@@ -1,3 +1,5 @@
+import { useLocation } from "react-router-dom";
+import { normalizeWorkerUrl, type WorkerConnection } from "./connection";
 import { useQuery } from "@tanstack/react-query";
 import { getToken, useUI } from "./store";
 import type { Evaluation, Health, Run } from "./types";
@@ -5,28 +7,46 @@ import { createApiClient } from "./client";
 const request = createApiClient({
   onState: (connectionState) => useUI.setState({ connectionState }),
 });
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+export async function api<T>(
+  path: string,
+  init?: RequestInit,
+  connection: WorkerConnection = {
+    url: useUI.getState().apiUrl,
+    token: getToken(),
+  },
+): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (getToken()) headers.set("Authorization", `Bearer ${getToken()}`);
-  return request<T>(useUI.getState().apiUrl, path, { ...init, headers });
+  if (connection.token)
+    headers.set("Authorization", `Bearer ${connection.token}`);
+  return request<T>(normalizeWorkerUrl(connection.url), path, {
+    ...init,
+    headers,
+  });
 }
 export const useHealth = () => {
   const url = useUI((s) => s.apiUrl);
+  const revision = useUI((s) => s.connectionRevision);
+  const connection = { url, token: getToken() };
+  const playback = /^\/run\/(?:recording-|sample-)/.test(
+    useLocation().pathname,
+  );
   return useQuery({
-    queryKey: ["health", url],
-    queryFn: () => api<Health>("/health"),
+    queryKey: ["health", url, revision],
+    queryFn: ({ signal }) => api<Health>("/health", { signal }, connection),
     retry: false,
-    enabled: !/^\/run\/(?:recording-|sample-)/.test(window.location.pathname),
+    enabled: !playback,
     refetchInterval: 30000,
   });
 };
 export const useRuns = () => {
   const health = useHealth();
   const url = useUI((s) => s.apiUrl);
+  const revision = useUI((s) => s.connectionRevision);
+  const connection = { url, token: getToken() };
   return useQuery({
-    queryKey: ["runs", url],
-    queryFn: () => api<Run[]>("/runs"),
-    enabled: !!health.data?.database,
+    queryKey: ["runs", url, revision],
+    queryFn: ({ signal }) => api<Run[]>("/runs", { signal }, connection),
+    enabled: !!health.data?.database && !!connection.token,
     retry: false,
     refetchInterval: 6000,
   });
@@ -34,10 +54,12 @@ export const useRuns = () => {
 export const useEvaluation = () => {
   const health = useHealth();
   const url = useUI((s) => s.apiUrl);
+  const revision = useUI((s) => s.connectionRevision);
+  const connection = { url, token: getToken() };
   return useQuery({
-    queryKey: ["evaluation", url],
-    queryFn: () => api<Evaluation>("/eval"),
-    enabled: !!health.data?.database,
+    queryKey: ["evaluation", url, revision],
+    queryFn: ({ signal }) => api<Evaluation>("/eval", { signal }, connection),
+    enabled: !!health.data?.database && !!connection.token,
     retry: false,
   });
 };
@@ -80,12 +102,15 @@ export type Budget = {
 export const useLimits = () => {
   const health = useHealth();
   const url = useUI((s) => s.apiUrl);
+  const revision = useUI((s) => s.connectionRevision);
+  const connection = { url, token: getToken() };
+  const playback = /^\/run\/(?:recording-|sample-)/.test(
+    useLocation().pathname,
+  );
   return useQuery({
-    queryKey: ["limits", url],
-    queryFn: () => api<Budget>("/limits"),
-    enabled:
-      !!health.data?.ready &&
-      !/^\/run\/(?:recording-|sample-)/.test(window.location.pathname),
+    queryKey: ["limits", url, revision],
+    queryFn: ({ signal }) => api<Budget>("/limits", { signal }, connection),
+    enabled: !!health.data?.ready && !!connection.token && !playback,
     retry: false,
     refetchInterval: 30000,
   });
@@ -97,9 +122,12 @@ export type Recording = {
   recorded_at: string;
   label: string;
 };
-export const useRecordings = () =>
-  useQuery({
-    queryKey: ["recordings", useUI((s) => s.apiUrl)],
-    queryFn: () => api<Recording[]>("/replays"),
+export const useRecordings = () => {
+  const url = useUI((s) => s.apiUrl);
+  return useQuery({
+    queryKey: ["recordings", url],
+    queryFn: ({ signal }) =>
+      api<Recording[]>("/replays", { signal }, { url, token: "" }),
     retry: false,
   });
+};

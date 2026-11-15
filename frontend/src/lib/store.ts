@@ -4,6 +4,7 @@ import type { Run } from "./types";
 import { advanceRecorded, makeRecorded } from "./replay";
 import { advanceSample, makeSample } from "./examples";
 type UIStore = {
+  connectionRevision: number;
   connectionState: import("./client").ConnectionState;
   theme: "dark" | "light";
   setTheme: () => void;
@@ -25,6 +26,7 @@ type UIStore = {
 export const useUI = create<UIStore>()(
   persist(
     (set, get) => ({
+      connectionRevision: 0,
       connectionState: "connected",
       theme: "dark",
       setTheme: () =>
@@ -36,7 +38,11 @@ export const useUI = create<UIStore>()(
       shortcutsOpen: false,
       setShortcutsOpen: (v) => set({ shortcutsOpen: v }),
       apiUrl: import.meta.env.VITE_API_URL ?? "",
-      setApiUrl: (v) => set({ apiUrl: v.replace(/\/$/, "") }),
+      setApiUrl: (v) =>
+        set((s) => ({
+          apiUrl: v.replace(/\/$/, ""),
+          connectionRevision: s.connectionRevision + 1,
+        })),
       samples: [],
       startSample: (id) => {
         const run = makeSample(id);
@@ -82,9 +88,30 @@ export const useUI = create<UIStore>()(
     },
   ),
 );
-export const getToken = () =>
-  sessionStorage.getItem("devpilot-api-token") ?? "";
-export const setToken = (v: string) =>
-  v
-    ? sessionStorage.setItem("devpilot-api-token", v)
-    : sessionStorage.removeItem("devpilot-api-token");
+export function getToken(): string {
+  try {
+    return sessionStorage.getItem("devpilot-api-token") ?? "";
+  } catch {
+    return "";
+  }
+}
+function writeToken(value: string) {
+  try {
+    if (value) sessionStorage.setItem("devpilot-api-token", value);
+    else sessionStorage.removeItem("devpilot-api-token");
+  } catch {
+    throw new Error("Allow session storage to save the worker connection.");
+  }
+}
+export function setToken(value: string) {
+  writeToken(value);
+  useUI.setState((s) => ({ connectionRevision: s.connectionRevision + 1 }));
+}
+export function saveConnection(url: string, token: string) {
+  writeToken(token);
+  useUI.setState((s) => ({
+    apiUrl: url,
+    connectionRevision: s.connectionRevision + 1,
+    connectionState: "connected",
+  }));
+}

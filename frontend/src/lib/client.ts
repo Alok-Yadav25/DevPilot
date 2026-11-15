@@ -33,6 +33,20 @@ export function wait(ms: number, signal?: AbortSignal | null): Promise<void> {
     signal?.addEventListener("abort", stop, { once: true });
   });
 }
+async function whileActive<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal | null,
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
+  return new Promise((resolve, reject) => {
+    const stop = () => reject(new DOMException("Cancelled", "AbortError"));
+    signal.addEventListener("abort", stop, { once: true });
+    promise
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", stop));
+  });
+}
 export function createApiClient(
   options: {
     fetcher?: typeof fetch;
@@ -109,11 +123,13 @@ export function createApiClient(
       headers.set("Idempotency-Key", crypto.randomUUID().replaceAll("-", ""));
     const prepared = { ...init, headers };
     const creatingRun = path === "/runs" && init.method === "POST";
-    const actionTimeout = creatingRun ? 120000 : timeout;
+    const checksReadiness =
+      creatingRun || (path === "/repos/validate" && init.method === "POST");
+    const actionTimeout = checksReadiness ? 120000 : timeout;
     const deadline = Date.now() + wakeMs;
     let response: Response;
     try {
-      if (creatingRun) {
+      if (checksReadiness) {
         const probe = await timed(`${base}/api/health?lightweight=true`, {
           signal: init.signal,
         });
@@ -152,12 +168,13 @@ export function createApiClient(
         wakes.set(base, pending);
       }
       try {
-        await pending;
-        options.onState?.("connected");
+        await whileActive(pending, init.signal);
         if (init.signal?.aborted)
           throw new DOMException("Cancelled", "AbortError");
+        options.onState?.("connected");
         response = await timed(`${base}/api${path}`, prepared, actionTimeout);
       } catch (failure) {
+        if (init.signal?.aborted) throw failure;
         options.onState?.("error");
         if (failure instanceof ApiError) throw failure;
         throw new ApiError(

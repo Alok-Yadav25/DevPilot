@@ -100,3 +100,28 @@ it("does not retry a slow but valid run-readiness request", async () => {
   await expect(result).resolves.toEqual({ id: "one-created-run" });
   expect(fetcher).toHaveBeenCalledTimes(2); // One cheap probe, one mutation.
 });
+
+it("aborts a caller during wake-up without retrying its action", async () => {
+  vi.useFakeTimers();
+  const states: string[] = [],
+    controller = new AbortController();
+  const fetcher = vi.fn(async (url: RequestInfo | URL) => {
+    if (String(url).includes("lightweight")) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      return json({ status: "awake" });
+    }
+    throw new TypeError("Disconnected");
+  });
+  const result = createApiClient({
+    fetcher,
+    onState: (state) => states.push(state),
+  })("", "/runs/one", { signal: controller.signal }).catch((error) => error);
+  await vi.advanceTimersByTimeAsync(1);
+  controller.abort();
+  expect(await result).toMatchObject({ name: "AbortError" });
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(
+    fetcher.mock.calls.filter(([url]) => String(url).endsWith("/runs/one")),
+  ).toHaveLength(1);
+  expect(states).not.toContain("error");
+});

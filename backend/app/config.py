@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     )
     max_concurrent_runs: int = Field(default=1, ge=1, le=3)
     requests_per_minute: int = Field(default=30, ge=1, le=120)
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_psycopg_driver(cls, value: str | SecretStr) -> str:
+        url = value.get_secret_value() if isinstance(value, SecretStr) else value
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        return url
 
     def secrets(self) -> list[str]:
         return [

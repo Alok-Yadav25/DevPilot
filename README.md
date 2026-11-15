@@ -2,7 +2,7 @@
 
 An agent for small, reproducible Python/pytest bugs. It investigates a public GitHub repository, proposes a bounded patch, runs tests through the selected sandbox, and pauses for human review. Only approval of the exact tested diff can create a target branch and draft PR. There is no merge operation.
 
-**Local only. Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** No deployment or remote repository provisioning has been performed.
+**Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** The owner authorized deployment to Cloudflare Pages, Render and Neon. See [deployment status](docs/DEPLOYMENT.md) for verified progress; configuration alone is not a completed deployment.
 
 ## Honest status
 
@@ -144,4 +144,4 @@ The new landing page is at `/`, with the focused run form at `/workspace`. See t
 
 Protected API: runs/list/detail/events, approve/reject/cancel, JSON report, limits, evaluation and repository readiness/issue reads. Public read-only routes: health and recordings. SSE has 15-second heartbeats, Last-Event-ID reconnect and client polling fallback. `/api/health?lightweight=true` supports bounded cold-start probing. Run creation accepts a stable `Idempotency-Key` so a lost response does not create another job.
 
-Nothing is hosted. Vercel frontend, Render API and Neon Postgres remain optional future providers, requiring authorization to deploy. [Render's free services](https://render.com/docs/free) can sleep after idle periods and restart; the client shows a bounded waking state rather than an immediate 8-second failure. Free quotas and public runner availability vary. No paid fallback or guaranteed uptime is claimed.
+Deployment to Cloudflare Pages, Render and Neon is authorized and being prepared. Check [deployment status](docs/DEPLOYMENT.md) for actual URLs and verification before assuming services are online. [Render's free services](https://render.com/docs/free) can sleep after idle periods and restart; the client shows a bounded waking state rather than an immediate 8-second failure. Free quotas and public runner availability vary. No paid fallback or guaranteed uptime is claimed.

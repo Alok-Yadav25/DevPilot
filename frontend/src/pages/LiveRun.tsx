@@ -879,7 +879,9 @@ export default function LiveRun() {
               {run.final_diff ? "Validated diff" : "Investigation in progress"}{" "}
               ·{" "}
               {sampleMode
-                ? "Scripted sample"
+                ? run.mode === "replay"
+                  ? "Recorded real run"
+                  : "Scripted sample"
                 : run.dry_run
                   ? "Dry run"
                   : "Live run"}

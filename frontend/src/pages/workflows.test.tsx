@@ -97,6 +97,26 @@ describe("Run and approval interactions", () => {
       screen.getByRole("tab", { name: "Diff" }).getAttribute("aria-selected"),
     ).toBe("true");
   });
+  it("labels recorded playback honestly and keeps its approval local", async () => {
+    const user = userEvent.setup();
+    let recorded = makeSample("slugify");
+    for (let i = 0; i < 20; i++) recorded = advanceSample(recorded);
+    recorded = { ...recorded, id: "recording-ui-fixture", mode: "replay" };
+    useUI.setState({ samples: [recorded] });
+    mount(<LiveRun />, `/run/${recorded.id}`);
+    await user.click(screen.getByRole("button", { name: /Approve patch/ }));
+    const text = screen.getByRole("dialog").textContent;
+    expect(text).toContain("Recorded real run");
+    expect(text).not.toContain("Scripted sample");
+    expect(text).toContain("Saved in this browser only. No PR is created.");
+    await user.click(screen.getByRole("button", { name: "Confirm approval" }));
+    await waitFor(() =>
+      expect(useUI.getState().samples[0].status).toBe("completed"),
+    );
+    expect(
+      vi.mocked(fetch).mock.calls.some((c) => c[1]?.method === "POST"),
+    ).toBe(false);
+  });
 });
 
 describe("calmer workspace", () => {

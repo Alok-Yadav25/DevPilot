@@ -58,7 +58,7 @@ export default function Layout() {
       ? "Replay mode"
       : ready
         ? "Worker ready"
-        : health.data
+        : health.data && !health.data.ready
           ? "Setup needed"
           : "Connect worker";
   useEffect(() => {

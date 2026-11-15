@@ -14,7 +14,7 @@ The frontend is built with `VITE_API_URL=https://devpilot-api-alok-yadav25.onren
 
 ## Real hosting checks
 
-These checks reached actual deployed services, not mocks. They do **not** verify autonomous repairs.
+These checks reached actual deployed services, not mocks. The infrastructure checks below are separate from the real dry-run repair documented in [VERIFICATION.md](VERIFICATION.md).
 
 | Check | Observed result |
 | --- | --- |
@@ -23,7 +23,7 @@ These checks reached actual deployed services, not mocks. They do **not** verify
 | `GET /api/health?lightweight=true` | 200; awake |
 | `GET /api/runs` without credential | 401 |
 | Authenticated runs, limits and evaluation | 200 |
-| Public recordings | 200; **zero recordings** |
+| Public recordings | 200; **one real recording**, created from the tested slugify run |
 | Frontend-origin preflight | 200; exact Cloudflare origin allowed |
 | Untrusted-origin preflight | 400; no allowed-origin response header |
 | Live desktop and mobile browser smoke | Landing, workspace, real API health, illustrative demo and Diff tab pass; no horizontal overflow or JavaScript runtime errors |
@@ -54,13 +54,13 @@ The owner explicitly approved these public repositories and the exact three-repo
 
 The workflow is dispatch-only. Publishing fixtures is not a test execution or repair success. No workflow dispatch was performed during provisioning.
 
-## Remaining live-run setup
+## Live verification and remaining work
 
-The separate sandbox and target tokens are now configured privately on Render. Both authenticated as the expected GitHub owner; the sandbox workflow is active and reachable. Those checks alone do not prove write permissions or a complete repair.
+The separate sandbox and target tokens are now configured privately on Render. Both authenticated as the expected GitHub owner; the sandbox workflow is active and reachable. A subsequent real workflow dispatch and patch test verified sandbox write/dispatch access. Target publication permissions remain unverified because no PR has been authorized.
 
 1. Keep the two fine-grained tokens separate: sandbox-only Actions/Contents write, and target-only Contents/Pull requests write. The broad GitHub CLI credential is not used by the deployed application.
 2. Groq, both GitHub tokens, `SANDBOX_REPO`, the exact three-repository allowlist, and `RUNNER_MODE=github_actions` are configured. Owner-wide access is disabled.
-3. Check runner health, then execute the [real-service verification checklist](VERIFICATION.md). A real website dry run was accepted after the quota fix, but failed preparing the baseline branch with sandbox HTTP 403. Correcting sandbox repository/write access is the next required step. A complete GitHub/Groq repair, restart during Actions execution, approval and draft PR remain unverified. There are zero executed real evaluation cases and zero real replay records.
+3. Check runner health, then execute the [real-service verification checklist](VERIFICATION.md). A real website dry run was accepted after the quota fix, but failed preparing the baseline branch with sandbox HTTP 403. After the owner corrected sandbox access, a second real website run passed both baselines, generated a first-attempt patch, passed both tests, completed AI review and human dry-run approval. The saved review survived an actual Render restart. No target branch or PR was created. There is one real replay record and zero executed evaluation cases. Restart during Actions execution, draft PR publication and the other live scenarios remain unverified.
 
 ## Shared GitHub quota regression
 
@@ -74,4 +74,6 @@ The client has bounded cold-start retries, but an actual idle sleep/wake cycle h
 
 ## Local checks
 
-Backend after deployment regression fixes: 166 passed, five optional Docker checks skipped, one live test excluded; Ruff and mypy pass. Frontend: 45 tests pass, including three mocked persisted-connection migration checks; production TypeScript/Vite build passes. A sixth mocked regression checks that sandbox permission errors identify the operation without exposing response secrets. Local/mock checks are distinct from the hosting checks above.
+Backend after deployment regression fixes: 166 passed, five optional Docker checks skipped, one live test excluded; Ruff and mypy pass. Frontend: 46 tests pass, including three mocked persisted-connection migration checks; production TypeScript/Vite build passes. A sixth mocked regression checks that sandbox permission errors identify the operation without exposing response secrets. Local/mock checks are distinct from the hosting checks above.
+
+The final frontend polish distinguishes recorded runs from scripted samples in the playback confirmation and shows **Connect worker** when a healthy API only needs the browser credential. The recorded-playback confirmation regression uses mocked local state and confirms that playback approval never sends a POST.

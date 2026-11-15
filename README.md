@@ -4,13 +4,13 @@ An agent for small, reproducible Python/pytest bugs. It investigates a public Gi
 
 **Never publish or host DevPilot on ChatGPT Sites or another ChatGPT/OpenAI hosting service.** The owner authorized deployment to Cloudflare Pages, Render and Neon. See [deployment status](docs/DEPLOYMENT.md) for verified progress; configuration alone is not a completed deployment.
 
-**Online:** [DevPilot](https://devpilot-alokyadav25.pages.dev) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health). The hosted API uses **GitHub Actions** with separate sandbox and target credentials. Illustrative samples work; real repair verification is in progress.
+**Online:** [DevPilot](https://devpilot-alokyadav25.pages.dev) · [API health](https://devpilot-api-alok-yadav25.onrender.com/api/health). The hosted API uses **GitHub Actions** with separate sandbox and target credentials. One real Python/pytest dry run completed with human approval; its recording can be replayed from the workspace.
 
 ## Honest status
 
 The website, API and CLI now select the same runner. Checkpoints, expiring database leases, remote job reattachment, public-repository policy, cold-start recovery, review tools and recorded replay storage are implemented. The UI is organized around starting a run, following the investigation and reviewing the patch.
 
-**A complete real GitHub/Groq repair is still unverified.** The owner confirmed Groq key rotation, but the sandbox and three public fixture repos are provisioned, and separate runtime sandbox and target tokens are configured. The [real-service verification table](docs/VERIFICATION.md) explicitly lists every live scenario as not run. There are **zero real recordings and zero executed real evaluation cases**. Scripted examples and mocked controller tests never count as autonomous repair successes.
+**One real website → Groq → GitHub Actions dry run is verified on the curated slugify fixture.** Both baselines reproduced the bug; the first patch passed both tests, AI review finished, the approval wait survived an actual API restart, and the owner approved the exact diff. No target branch or PR was created. There is **one real recording and zero executed evaluation cases**. This is a smoke result, not a benchmark success rate. Draft PR publication, restart during an active Actions job, and the remaining failure/retry scenarios are still unverified. See the [real-service evidence](docs/VERIFICATION.md). The owner confirmed Groq key rotation; revocation was not independently checked.
 
 Local evidence is in [the quality report](docs/quality/REPORT.md). Phase reports [1](docs/PHASE-1.md), [2](docs/PHASE-2.md), [3](docs/PHASE-3.md), [4](docs/PHASE-4.md), [5](docs/PHASE-5.md), [6](docs/PHASE-6.md), [7](docs/PHASE-7.md), [8](docs/PHASE-8.md) and [9](docs/PHASE-9.md) distinguish implementation, local tests and unmet live criteria.
 
@@ -37,7 +37,7 @@ RUNNER_MODE=replay DATABASE_URL=sqlite:///.devpilot/local.sqlite \
   uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-SQLite is a development fallback. Production uses PostgreSQL and Alembic migrations. Replay mode refuses live execution. Real recordings appear only after an observed successful Actions-backed investigation; none are bundled as real evidence.
+SQLite is a development fallback. Production uses PostgreSQL and Alembic migrations. Replay mode refuses live execution. Real recordings appear only after an observed successful Actions-backed investigation. The hosted database now contains one real recording; the frontend does not bundle it as a synthetic example.
 
 ## Configure live runs
 

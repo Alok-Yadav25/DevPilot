@@ -11,7 +11,7 @@ These results describe local code and browser checks. **No real GitHub/Groq repa
 | Frontend tests | 42 passed | Vitest 5.1.0; fixtures, mocked fetch and fake timers |
 | Frontend production build | Passed | React 18 / Vite 6 |
 | Typography check | Passed | No authored text sizes below 12px |
-| Playwright | 11 passed, 1 mobile-only test skipped on desktop | Desktop 1440×900 and mobile 390×844; mocked API, fixture playback, approval, navigation, theme, worker failures and mobile focus |
+| Playwright | 21 passed, 1 mobile-only test skipped on desktop | Landing and workspace; desktop/mobile plus a 320px check; mocked API/fixtures, motion, approval, navigation, theme, worker failures and focus |
 | SQLite migrations | Upgrade through 0004 passed | Local migration smoke check; Postgres has not been tested live |
 | Gitleaks | 0 findings in available root/frontend refs and a 184-file working-source snapshot | Redacted local scans; ignored environments excluded; no remote refs fetched |
 | npm application dependency audit | 0 reported vulnerabilities | After removing optional Lighthouse dependencies from the application tree |
@@ -22,6 +22,8 @@ The API-to-Actions integration test uses the actual service, factory, adapter, a
 Additional regressions cover node-boundary power loss (including retry), lease expiry/terminal preservation, remote reattachment without a second dispatch, lost PR-response reconciliation, idempotent run creation (including simultaneous retries), slow readiness without duplicate mutation, redacted logs/errors, cancellation cleanup before target-policy checks, old-schema health failure and approval-bound report export.
 
 ## Lighthouse
+
+The latest [landing redesign snapshot](../LANDING-REDESIGN.md) records median performance 99 landing / 98 workspace / 97 run / 98 history and 100 accessibility for each route. [All twelve raw reports](landing-lighthouse/summary.json) are retained with scope and timing limits. Earlier snapshots below remain historical evidence.
 
 A later minimal-workspace snapshot records 100/99/99 performance and 100 accessibility across three trials per route. Its scope, timing and remaining limitations are documented in [UI polish report](../UI-POLISH.md), with [separate raw reports](polish-lighthouse/summary.json). The table below retains the earlier measurements.
 

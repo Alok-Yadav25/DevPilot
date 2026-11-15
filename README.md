@@ -138,7 +138,7 @@ npm run test:e2e --prefix frontend
 
 Playwright smoke tests use mocked API data, run on desktop/mobile, and exercise replay, diff inspection and explicit approval. They are not real-service repair tests. Optional Docker checks require `DEVPILOT_DOCKER_TESTS=1`; opt-in live tests/checklists are described in [VERIFICATION.md](docs/VERIFICATION.md). Local Lighthouse scores, version, scope and raw reports are in [quality evidence](docs/quality/REPORT.md).
 
-The latest local UI audit, connection fixes and remaining gaps are in [UI polish report](docs/UI-POLISH.md).
+The new landing page is at `/`, with the focused run form at `/workspace`. See the [landing redesign and measured checks](docs/LANDING-REDESIGN.md); earlier connection fixes are in the [UI polish report](docs/UI-POLISH.md).
 
 ## API and hosting
 

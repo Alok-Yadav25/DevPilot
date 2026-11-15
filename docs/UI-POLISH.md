@@ -1,5 +1,7 @@
 # Workspace polish and issue audit
 
+The subsequent [landing redesign](LANDING-REDESIGN.md) moves the form to `/workspace` and refreshes the visual theme. The report below records the earlier audit.
+
 November 15, 2026. This is a local code/UI audit, not certification that every defect is resolved. Nothing was deployed or pushed remotely.
 
 ## Phase 7 follow-up report

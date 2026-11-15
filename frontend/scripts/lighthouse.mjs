@@ -118,12 +118,14 @@ try {
     sample,
   );
   const summaries = [];
+  const routes = [
+    ["landing", "/"],
+    ["overview", "/workspace"],
+    ["live-run", "/run/sample-quality"],
+    ["history", "/runs"],
+  ];
   for (let trial = 1; trial <= 3; trial++) {
-    for (const [name, path] of [
-      ["overview", "/"],
-      ["live-run", "/run/sample-quality"],
-      ["history", "/runs"],
-    ]) {
+    for (const [name, path] of routes) {
       const result = await lighthouse(
         base + path,
         {
@@ -163,7 +165,7 @@ try {
     }
   }
   const median = (values) => [...values].sort((a, b) => a - b)[1];
-  const pages = ["overview", "live-run", "history"].map((page) => {
+  const pages = routes.map(([page]) => {
     const trials = summaries.filter((row) => row.page === page);
     return {
       page,

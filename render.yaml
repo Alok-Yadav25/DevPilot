@@ -1,4 +1,5 @@
 # Render Free web service. PostgreSQL is provisioned separately on Neon.
+# Live-runner template; the hosted service currently uses replay mode.
 # Free services have no pre-deploy hook; app.serve migrates before Uvicorn starts.
 services:
   - type: web

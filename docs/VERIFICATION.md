@@ -1,6 +1,6 @@
 # Real-service verification
 
-Updated November 14, 2026. **No full real-service scenario has run.** A local passing mocked test is not an entry in this table. Groq key rotation was confirmed by the owner in chat; revocation was not independently checked. The local environment has no configured sandbox repo, sandbox PAT, target PAT or target allowlist.
+Updated November 16, 2026. **No full real-service scenario has run.** A local passing mocked test is not an entry in this table. Groq key rotation was confirmed by the owner in chat; revocation was not independently checked. The hosted website, replay API and Neon database are online; see [deployment evidence](DEPLOYMENT.md). The sandbox and three fixture repos have been published with an exact allowlist. Separate runtime PATs are still missing. No full repair scenario has run.
 
 | Scenario | Real result | Evidence | Date |
 | --- | --- | --- | --- |
@@ -19,8 +19,8 @@ Updated November 14, 2026. **No full real-service scenario has run.** A local pa
 
 ## Provisioning checklist
 
-1. Create a public repository you own named `devpilot-sandbox`. Copy `sandbox-repo/.github/workflows/run-tests.yml` onto its default branch. Set Actions repository variables `ALLOWED_TARGET_REPOS` and optionally `ALLOWED_TARGET_OWNER`, matching the API's values. Enable Actions. This project has not created that repository for you.
-2. Publish copies of `examples/slugify`, `examples/clamp` and `examples/backoff` to three small public repos you own. Preserve their known failing tests. Add those repo names to the allowlists. They are local fixtures until published; no working public example URL is invented.
+1. Create a public repository you own named `devpilot-sandbox`. Copy `sandbox-repo/.github/workflows/run-tests.yml` onto its default branch. Set Actions repository variables `ALLOWED_TARGET_REPOS` and optionally `ALLOWED_TARGET_OWNER`, matching the API's values. Enable Actions. The owner approved creation, and `Alok-Yadav25/devpilot-sandbox` is now published.
+2. Publish copies of `examples/slugify`, `examples/clamp` and `examples/backoff` to three small public repos you own. Preserve their known failing tests. Add those repo names to the allowlists. The three `Alok-Yadav25/devpilot-example-*` repositories are now published; their publication is not repair evidence.
 3. Set separate fine-grained tokens locally: sandbox PAT limited to the sandbox repo (Actions write, Contents write), target PAT limited to the target repos (Contents write, Pull requests write). Never place either in the workflow or browser. Configure Groq, pooled Postgres, API access token and explicit CORS allowlist.
 4. Run `alembic upgrade head`, start the API, and inspect `/api/health` and `/api/limits`. Set `GROQ_KEY_ROTATION_CONFIRMED=1` only after revocation. The model is configured by `GROQ_MODEL`; the current [Groq model list](https://console.groq.com/docs/models) includes the default `openai/gpt-oss-120b` as checked November 14, 2026. Account availability is checked at runtime.
 

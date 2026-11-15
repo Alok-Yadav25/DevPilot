@@ -80,6 +80,17 @@ export const useUI = create<UIStore>()(
     }),
     {
       name: "devpilot-workspace-v1",
+      version: 1,
+      migrate: (persisted) => {
+        const saved = persisted as Partial<
+          Pick<UIStore, "theme" | "apiUrl" | "samples">
+        >;
+        return {
+          theme: saved.theme ?? "dark",
+          samples: saved.samples ?? [],
+          apiUrl: saved.apiUrl || import.meta.env.VITE_API_URL || "",
+        };
+      },
       partialize: (s) => ({
         theme: s.theme,
         apiUrl: s.apiUrl,

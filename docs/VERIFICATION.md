@@ -16,6 +16,7 @@ Updated November 16, 2026. **One curated fixture completed a real dry run, inclu
 | Kill API during Actions wait, restart | Not run | — | — |
 | Restart while awaiting approval | Passed via actual Render service restart; same diff/review and three remote IDs | [Evidence](evidence/hosted-slugify-2026-11-16.json) | 2026-11-16 |
 | Real Groq 429 | Not run | — | — |
+| Replay the real recording | Passed in public desktop browser; Diff and local finish, zero mutation requests | [Evidence](evidence/hosted-slugify-2026-11-16.json) | 2026-11-16 |
 | Missing artifact / remote timeout | Not run | — | — |
 
 ## Live deployment smoke evidence

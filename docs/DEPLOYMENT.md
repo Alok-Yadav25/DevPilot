@@ -18,7 +18,7 @@ These checks reached actual deployed services, not mocks. The infrastructure che
 
 | Check | Observed result |
 | --- | --- |
-| Render deployment `dep-dbsvk2e1egvs73f0kgpg` | Live; API source `ebc1dd71e56ed162db253dba702d49f6e5369673` |
+| Render deployment `dep-dbsvvfm1egvs73f1gj5g` | Live; API source `9ef68fdebec777450ed473faf8ab45c761bb1c82` |
 | `GET /api/health` | Initially 200 with runner `replay`; now 200 with runner `github_actions`, database/runner/Groq configuration ready |
 | `GET /api/health?lightweight=true` | 200; awake |
 | `GET /api/runs` without credential | 401 |
@@ -29,9 +29,9 @@ These checks reached actual deployed services, not mocks. The infrastructure che
 | Live desktop and mobile browser smoke | Landing, workspace, real API health, illustrative demo and Diff tab pass; no horizontal overflow or JavaScript runtime errors |
 | Returning visitor with old empty worker address | Automatically uses deployed API; saved theme preserved |
 
-Frontend deployment [78098d2e](https://78098d2e.devpilot-alokyadav25.pages.dev) uses source `8ab0e8bb94e156bc7d859ee8e752aabbbd1ca61d`. Its [GitHub secret scan](https://github.com/Alok-Yadav25/DevPilot/actions/runs/43747669761) passed. Browser checks used a separate headless browser against the real public frontend and API, without mocked responses. The demo remains explicitly illustrative; it is not a repair test.
+Frontend deployment [2750b358](https://2750b358.devpilot-alokyadav25.pages.dev) uses source `f36e7471b7f4da332ad2d5c95a5a2bbb952a0704`. Its [GitHub secret scan](https://github.com/Alok-Yadav25/DevPilot/actions/runs/43750492616) passed. Browser checks used a separate headless browser against the real public frontend and API, without mocked responses. The demo remains explicitly illustrative; it is not a repair test.
 
-HTTP evidence was collected at `2026-11-15T18:31:58Z` (November 16 in India). Private operator evidence is stored under ignored `.devpilot/deploy/`; credentials and database URLs are not published.
+Initial infrastructure HTTP evidence was collected at `2026-11-15T18:31:58Z` (November 16 in India). Later repair, approval-wait restart and recorded-replay checks are captured in the [real-service evidence](evidence/hosted-slugify-2026-11-16.json). Private operator evidence is stored under ignored `.devpilot/deploy/`; credentials and database URLs are not published.
 
 ## Access and updates
 
@@ -77,3 +77,5 @@ The client has bounded cold-start retries, but an actual idle sleep/wake cycle h
 Backend after deployment regression fixes: 166 passed, five optional Docker checks skipped, one live test excluded; Ruff and mypy pass. Frontend: 46 tests pass, including three mocked persisted-connection migration checks; production TypeScript/Vite build passes. A sixth mocked regression checks that sandbox permission errors identify the operation without exposing response secrets. Local/mock checks are distinct from the hosting checks above.
 
 The final frontend polish distinguishes recorded runs from scripted samples in the playback confirmation and shows **Connect worker** when a healthy API only needs the browser credential. The recorded-playback confirmation regression uses mocked local state and confirms that playback approval never sends a POST.
+
+The real recording was also replayed through the public website in a separate desktop browser without credentials or mocked responses. Timing playback, Diff and the recorded-run confirmation passed; completing playback changed only browser state, with zero mutation requests and zero JavaScript runtime errors. The API and target repositories were not changed by playback.

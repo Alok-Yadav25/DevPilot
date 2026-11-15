@@ -108,5 +108,15 @@
       "type": "server_restarted",
       "timestamp": "2026-11-15T19:00:31.409823Z"
     }
+  },
+  "recorded_replay_browser": {
+    "checked_at_utc": "2026-11-15T19:06:42.980Z",
+    "real_recording": true,
+    "public_without_credentials": true,
+    "recorded_timing_playback": true,
+    "diff_displayed": true,
+    "local_playback_finish_only": true,
+    "mutation_requests": [],
+    "runtime_errors": []
   }
 }

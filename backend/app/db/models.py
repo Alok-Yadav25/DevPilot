@@ -78,6 +78,10 @@ class EvalResultRow(Base):
     result: Mapped[str] = mapped_column(String(20))
     attempts: Mapped[int] = mapped_column(Integer)
     duration_seconds: Mapped[float] = mapped_column(Float)
+    failure_reason: Mapped[str] = mapped_column(Text, default="")
+    commit_sha: Mapped[str] = mapped_column(String(40), default="")
+    model: Mapped[str] = mapped_column(String(200), default="")
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 

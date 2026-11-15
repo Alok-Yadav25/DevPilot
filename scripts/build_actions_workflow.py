@@ -117,6 +117,8 @@ footer = """          PYTHON
 path = root / "sandbox-repo/.github/workflows/run-tests.yml"
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(
-    header + "".join(("          " + line if line else "") + "\n" for line in inner.splitlines()) + footer
+    header
+    + "".join(("          " + line if line else "") + "\n" for line in inner.splitlines())
+    + footer
 )
 print(path)

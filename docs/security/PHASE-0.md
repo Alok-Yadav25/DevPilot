@@ -1,6 +1,8 @@
 # Phase 0 security report — November 14, 2026
 
-**Status: code safeguards implemented; manual credential revocation/rotation remains unconfirmed. Do not advance to Phase 1 yet.**
+**Historical Phase 0 status:** code safeguards were implemented; key rotation was unconfirmed at this checkpoint.
+
+**Update (November 15, 2026):** the owner subsequently confirmed key rotation in chat and authorized work through the remaining phases. Revocation was not independently checked against Groq. Original checkpoint evidence below is retained.
 
 ## Manual credential action
 

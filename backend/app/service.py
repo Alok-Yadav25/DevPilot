@@ -353,7 +353,6 @@ class RunService:
             if publishing:
                 self.publish(run_id)
                 return
-            RunPolicy(self.settings).remote(repo, issue)
             sandbox = make_runner(
                 self.settings,
                 lambda message: self.add_event(
@@ -369,14 +368,21 @@ class RunService:
                 if hasattr(sandbox, "cancel_pending"):
                     sandbox.cancel_pending()
                 raise RunCancelled("Cancelled by the operator; remote cleanup requested.")
+            RunPolicy(self.settings).remote(repo, issue)
             sandbox.preflight()
             key = self.settings.groq_api_key.get_secret_value()
             if not key:
                 raise DevPilotError("GROQ_API_KEY is missing on the worker.")
+
+            def model_waiting(message: str) -> None:
+                if llm:
+                    self.limits["groq"] = dict(llm.limits)
+                self.add_event(run_id, Event(node="llm", type="waiting", message=message))
+
             llm = GroqClient(
                 key,
                 self.settings.groq_model,
-                lambda msg: self.add_event(run_id, Event(node="llm", type="waiting", message=msg)),
+                model_waiting,
                 cancel=cancel,
             )
             llm.preflight()
@@ -427,7 +433,7 @@ class RunService:
                     Event(
                         node="approval",
                         type="start",
-                        message="Waiting for human review. No branch has been pushed.",
+                        message="Waiting for human review. No target branch has been pushed.",
                     ),
                 )
                 self.record_replay(run_id)
@@ -455,6 +461,26 @@ class RunService:
                         .where(RunRow.id == run_id, RunRow.worker_id == self.worker_id)
                         .values(worker_id=None, lease_expires_at=None)
                     )
+            if (
+                owned
+                and sandbox
+                and not self.stopping.is_set()
+                and hasattr(sandbox, "cancel_pending")
+            ):
+                with self.sessions() as db:
+                    finished = db.get(RunRow, run_id)
+                    needs_cleanup = bool(
+                        finished
+                        and finished.status in {"failed", "cancelled", "timeout", "unsuitable"}
+                    )
+                if needs_cleanup:
+                    try:
+                        sandbox.cancel_pending()
+                    except DevPilotError as exc:
+                        self.add_event(
+                            run_id,
+                            Event(node="sandbox", type="error", message=self.redact(str(exc))),
+                        )
             if sandbox:
                 self.limits["github"] = getattr(sandbox, "limits", {})
                 sandbox.close()

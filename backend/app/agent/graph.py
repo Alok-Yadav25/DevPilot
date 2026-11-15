@@ -84,7 +84,7 @@ class Agent:
         if self.pause_requested.is_set():
             raise WorkerPaused("Worker shutting down; the run will resume.")
         if self.cancel.is_set():
-            raise RunCancelled("Stopped by the operator. No changes were published.")
+            raise RunCancelled("Stopped by the operator. No target changes were published.")
         seconds = self.deadline - time.monotonic()
         if seconds <= 0:
             raise RunTimeout("Global run timeout reached. No further attempts were made.")
@@ -470,6 +470,6 @@ class Agent:
             self.on_review(self.report, files)
         self.report.status = "ready_for_review"
         self.report.reason = (
-            "Patch and test evidence exported for human review. Nothing was pushed."
+            "Patch and test evidence exported for human review. No target changes were pushed."
         )
         return {"status": "ready_for_review"}

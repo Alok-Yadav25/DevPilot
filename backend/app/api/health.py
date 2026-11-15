@@ -16,7 +16,14 @@ def health(request: Request, lightweight: bool = False) -> dict:
     database = False
     try:
         with request.app.state.engine.connect() as conn:
-            conn.execute(text("SELECT 1 FROM runs LIMIT 1"))
+            conn.execute(
+                text(
+                    "SELECT 1 FROM runs WHERE checkpoint IS NOT NULL "
+                    "AND remote_jobs IS NOT NULL LIMIT 1"
+                )
+            )
+            conn.execute(text("SELECT 1 FROM replay_runs LIMIT 1"))
+            conn.execute(text("SELECT 1 FROM eval_results WHERE evidence IS NOT NULL LIMIT 1"))
             database = True
     except Exception:
         pass
@@ -46,7 +53,7 @@ def health(request: Request, lightweight: bool = False) -> dict:
         "model": settings.groq_model,
         "message": "Runner ready."
         if ready
-        else "Check the selected runner, database, GROQ_API_KEY and API_ACCESS_TOKEN. "
+        else "Check runner, database migrations, GROQ_API_KEY and API_ACCESS_TOKEN. "
         + runner_error,
     }
 

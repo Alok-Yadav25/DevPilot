@@ -46,6 +46,10 @@ def create_run(body: NewRun, request: Request, db: DB) -> dict:
     try:
         # Preflight before inserting a run; unavailable workers never simulate success.
         service = request.app.state.service
+        if service.settings.runner_mode == "replay":
+            raise HTTPException(
+                503, "Live execution is disabled in replay mode. Choose a recording or example."
+            )
         if not service.settings.groq_api_key.get_secret_value():
             raise HTTPException(503, "Set GROQ_API_KEY on the worker before starting live runs.")
         request_id = request.headers.get("Idempotency-Key", "")

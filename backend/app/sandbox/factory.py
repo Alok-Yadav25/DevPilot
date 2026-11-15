@@ -4,18 +4,13 @@ import threading
 from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from app.agent.state import TestResult
 from app.config import Settings
 from app.errors import DevPilotError
+from app.sandbox.base import SandboxRunner as Runner
 from app.security import Redactor
-
-
-class Runner(Protocol):
-    def preflight(self) -> None: ...
-    def run(self, workdir: Path, timeout: float | None = None) -> TestResult: ...
-    def close(self) -> None: ...
 
 
 class ReplayRunner:

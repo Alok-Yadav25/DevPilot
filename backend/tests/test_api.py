@@ -192,6 +192,7 @@ def test_eval_counts_failures_in_denominator(client: TestClient) -> None:
                 result="passed",
                 attempts=1,
                 duration_seconds=10,
+                evidence={"source": "real_api", "fixture": True},
             )
         )
         db.add(
@@ -201,6 +202,7 @@ def test_eval_counts_failures_in_denominator(client: TestClient) -> None:
                 result="failed",
                 attempts=3,
                 duration_seconds=30,
+                evidence={"source": "real_api", "fixture": True},
             )
         )
     result = client.get("/api/eval", headers=HEADERS).json()
@@ -302,3 +304,37 @@ def test_download_report_includes_evidence_and_approval(client: TestClient):
     assert data["approval_record"]["events"][-1]["message"] == "Operator chose approve."
     assert "source_snapshot" not in data and TOKEN not in response.text
     assert "attachment" in response.headers["content-disposition"]
+
+
+def test_cancelled_stored_job_cleans_up_before_target_policy(client: TestClient):
+    import threading
+    from unittest.mock import MagicMock
+
+    reviewed(client)
+    service = client.app.state.service
+    with service.sessions.begin() as db:
+        row = db.get(RunRow, "test-run")
+        row.status, row.cancel_requested = "running", True
+        row.remote_jobs = {"remote": {"run_id": 42}}
+    runner = MagicMock()
+    runner.limits = {}
+    with (
+        patch("app.service.make_runner", return_value=runner),
+        patch(
+            "app.service.RunPolicy.remote",
+            side_effect=AssertionError("deleted target must not prevent cancellation"),
+        ) as policy,
+    ):
+        service.execute("test-run", threading.Event())
+        policy.assert_not_called()
+        assert runner.cancel_pending.called
+    with service.sessions() as db:
+        assert db.get(RunRow, "test-run").status == "cancelled"
+
+
+def test_health_does_not_claim_old_schema_is_ready(client: TestClient):
+    with client.app.state.engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE replay_runs")
+    health = client.get("/api/health").json()
+    assert health["database"] is False and health["ready"] is False
+    assert "migrations" in health["message"]

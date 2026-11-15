@@ -364,7 +364,7 @@ export default function LiveRun() {
                 : (live.error?.message ??
                   "Connect the worker that owns this run.")}
             </p>
-            <Link className="button button-secondary" to="/">
+            <Link className="button button-secondary" to="/workspace">
               Overview
               <ArrowRight size={15} />
             </Link>

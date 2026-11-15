@@ -94,7 +94,7 @@ export default function NewRun({ embedded = false }: { embedded?: boolean }) {
     <div className={embedded ? "embedded-run" : "page new-run-page"}>
       {!embedded && (
         <>
-          <Link className="back-link" to="/">
+          <Link className="back-link" to="/workspace">
             <ArrowLeft size={16} />
             Overview
           </Link>

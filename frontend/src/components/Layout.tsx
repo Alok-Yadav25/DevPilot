@@ -12,7 +12,6 @@ import {
   Plus,
   Sun,
   X,
-  Zap,
 } from "lucide-react";
 import { MotionConfig } from "framer-motion";
 import { Toaster } from "sonner";
@@ -22,24 +21,13 @@ import { ApiError } from "../lib/client";
 import { Button } from "./ui/button";
 import { Dialog } from "./ui/dialog";
 import { ConnectionDialog } from "./ConnectionDialog";
+import { Logo, CreatorCredit } from "./Brand";
 const links = [
-  { path: "/", label: "Overview", icon: LayoutDashboard },
+  { path: "/workspace", label: "Overview", icon: LayoutDashboard },
   { path: "/runs", label: "History", icon: Activity },
   { path: "/evaluation", label: "Evaluation", icon: BarChart3 },
   { path: "/about", label: "How it works", icon: BookOpen },
 ];
-export function Logo() {
-  return (
-    <span className="brand">
-      <span className="brand-mark">
-        <Zap size={21} fill="currentColor" strokeWidth={1.8} />
-      </span>
-      <span>
-        devpilot<span className="brand-period">.</span>
-      </span>
-    </span>
-  );
-}
 export default function Layout() {
   const navigate = useNavigate(),
     location = useLocation();
@@ -181,7 +169,7 @@ export default function Layout() {
               <NavLink
                 key={path}
                 to={path}
-                end={path === "/"}
+                end={path === "/workspace"}
                 className={({ isActive }) =>
                   `nav-item ${isActive ? "nav-active" : ""}`
                 }
@@ -288,7 +276,7 @@ export default function Layout() {
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              {!["/", "/new"].includes(location.pathname) && (
+              {!["/workspace", "/new"].includes(location.pathname) && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -330,6 +318,9 @@ export default function Layout() {
             )}
             <Outlet />
           </main>
+          <footer className="workspace-credit">
+            <CreatorCredit />
+          </footer>
         </div>
       </div>
       <ConnectionDialog />

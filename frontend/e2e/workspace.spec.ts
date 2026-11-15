@@ -54,7 +54,7 @@ test.beforeEach(async ({ page }) => {
 test("overview form fits and has readable text without horizontal overflow", async ({
   page,
 }, info) => {
-  await page.goto("/");
+  await page.goto("/workspace");
   const start = page.getByRole("button", { name: "Start run", exact: true });
   await expect(start).toBeVisible();
   const box = await start.boundingBox();
@@ -91,7 +91,7 @@ test("illustrative run shows patch and requires explicit keyboard approval", asy
   page.on("request", (req) => {
     if (req.method() === "POST") mutations.push(req.url());
   });
-  await page.goto("/");
+  await page.goto("/workspace");
   await page
     .getByRole("button", { name: "Try an example", exact: true })
     .click();
@@ -108,6 +108,9 @@ test("illustrative run shows patch and requires explicit keyboard approval", asy
     page.getByRole("tab", { name: "Diff", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel")).toContainText("slugify.py");
+  await page.getByRole("tab", { name: "Workflow", exact: true }).click();
+  await expect(page.locator(".react-flow")).toBeVisible();
+  await page.getByRole("tab", { name: "Diff", exact: true }).click();
   await page.getByRole("button", { name: /Approve patch/ }).focus();
   await page.keyboard.press("a");
   const confirm = page.getByRole("button", {
@@ -137,7 +140,7 @@ test("recorded replay keeps evidence and never dispatches a provider action", as
   page.on("request", (req) => {
     if (req.method() === "POST") mutations.push(req.url());
   });
-  await page.goto("/");
+  await page.goto("/workspace");
   await page.getByRole("button", { name: /examples\/slugify.*Replay/ }).click();
   await expect(
     page.getByText("Recorded real run.", { exact: true }),
@@ -163,7 +166,7 @@ test("navigation, theme and connection errors stay usable", async ({
 }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/workspace");
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.reload();
@@ -281,7 +284,7 @@ test("mobile navigation supports Escape and keeps hidden links out of focus", as
   page,
 }, info) => {
   test.skip(info.project.name !== "mobile", "Mobile drawer interaction");
-  await page.goto("/");
+  await page.goto("/workspace");
   const menu = page.getByRole("button", { name: "Open navigation" });
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }),

@@ -6,7 +6,9 @@ import Layout from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Home from "./pages/Home";
 import "./styles/index.css";
+import "./styles/premium.css";
 import NewRun from "./pages/NewRun";
+const Workspace = lazy(() => import("./pages/Workspace"));
 const LiveRun = lazy(() => import("./pages/LiveRun"));
 const History = lazy(() => import("./pages/History"));
 const Evaluation = lazy(() => import("./pages/Evaluation"));
@@ -28,7 +30,7 @@ function NotFound() {
     <div className="page empty-state">
       <h1>This route took a wrong turn.</h1>
       <p>The page or run you’re looking for could not be found.</p>
-      <a className="button button-primary" href="/">
+      <a className="button button-primary" href="/workspace">
         Back to workspace
       </a>
     </div>
@@ -41,8 +43,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <BrowserRouter>
           <Suspense fallback={<Loading />}>
             <Routes>
+              <Route index element={<Home />} />
               <Route element={<Layout />}>
-                <Route index element={<Home />} />
+                <Route path="workspace" element={<Workspace />} />
                 <Route path="new" element={<NewRun />} />
                 <Route path="run/:id" element={<LiveRun />} />
                 <Route path="runs" element={<History />} />

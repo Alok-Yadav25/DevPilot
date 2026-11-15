@@ -1,0 +1,159 @@
+/* A shared warm-neutral palette, used by the landing page and the workspace. */
+:root {
+  --bg: #0b0c0b;
+  --sidebar: #10110f;
+  --surface: #131512;
+  --surface-raised: #1a1c18;
+  --surface-hover: #22251f;
+  --border: #2b2f27;
+  --text: #f1f0e9;
+  --muted: #a3aa9a;
+  --subtle: #929a89;
+  --accent: #dfbd87;
+  --accent-solid: #e2bf87;
+  --accent-soft: #dbbb8114;
+  --success: #9bceac;
+  --warning: #e5bd79;
+  --error: #ef9a92;
+  --cyan: #a6c6c0;
+  --heading-serif: "Instrument Serif", Georgia, serif;
+  --gold-glow: #b18a4930;
+}
+:root[data-theme="light"] {
+  --bg: #f7f5ef;
+  --sidebar: #faf9f5;
+  --surface: #fffefa;
+  --surface-raised: #eeece4;
+  --surface-hover: #e9e6dc;
+  --border: #deddd1;
+  --text: #20251e;
+  --muted: #656c5b;
+  --subtle: #707764;
+  --accent: #805b2b;
+  --accent-solid: #2c392b;
+  --accent-soft: #6b784d0c;
+  --success: #39754b;
+  --warning: #8a5e1c;
+  --error: #af493e;
+  --cyan: #42685f;
+  --gold-glow: #b18a491a;
+}
+.premium-brand {
+  gap: 10px;
+  letter-spacing: -1.2px;
+  font-size: 27px;
+  font-weight: 600;
+}
+.brand-symbol {
+  object-fit: contain;
+  filter: invert(95%) sepia(12%) saturate(185%) hue-rotate(2deg);
+}
+:root[data-theme="light"] .brand-symbol {
+  filter: none;
+}
+.brand-period {
+  color: var(--accent);
+}
+.button-primary {
+  background: var(--accent-solid);
+  color: #171c15;
+  border-color: transparent;
+}
+.button-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 24px var(--gold-glow);
+}
+:root[data-theme="light"] .button-primary {
+  color: #fffdf4;
+}
+.button-primary kbd {
+  color: inherit;
+  border-color: currentColor;
+  background: transparent;
+}
+.switch[data-state="checked"] {
+  background: var(--accent-solid);
+}
+.nav-active {
+  border-color: var(--border);
+}
+.nav-active::before {
+  background: var(--accent);
+}
+.icon-control {
+  border-radius: 10px;
+}
+.app-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.app-body main {
+  flex: 1;
+}
+.workspace-credit {
+  border-top: 1px solid var(--border);
+  margin: 16px 28px 0;
+  padding: 22px 0;
+  text-align: right;
+}
+.creator-credit {
+  color: var(--muted);
+  font-size: 13px;
+}
+.creator-credit a {
+  color: var(--text);
+  transition: color 0.2s;
+}
+.creator-credit a:hover {
+  color: var(--accent);
+}
+.status-progress,
+.status-review {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+.tab-dot,
+.status-dot.violet {
+  background: var(--accent);
+}
+.example-icon-0,
+.example-icon-1,
+.example-icon-2 {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+:root[data-theme="light"] .skip-link {
+  color: white;
+}
+@media (max-width: 780px) {
+  .workspace-credit {
+    margin-inline: 18px;
+    text-align: center;
+  }
+}
+
+.graph-node-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.example-card:hover,
+.example-icon,
+.timeline-active-label {
+  border-color: var(--border);
+}
+.sample-label {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+.sample-banner button:first-child {
+  border-color: var(--border);
+}
+.diff-view {
+  --diff-selection-background-color: var(--accent-soft);
+}
+.diff-line.hunk {
+  color: var(--muted);
+  background: var(--accent-soft);
+}

@@ -86,12 +86,12 @@ export default function AgentGraph({ run }: { run: Run }) {
     type: "smoothstep",
     animated: done.has(d.id) && active === definitions[i + 1].id,
     style: {
-      stroke: done.has(d.id) ? "#7762ce" : "#303444",
+      stroke: done.has(d.id) ? "var(--accent)" : "var(--border)",
       strokeWidth: 1.4,
     },
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      color: done.has(d.id) ? "#7762ce" : "#303444",
+      color: done.has(d.id) ? "var(--accent)" : "var(--border)",
       width: 14,
       height: 14,
     },
@@ -102,10 +102,14 @@ export default function AgentGraph({ run }: { run: Run }) {
     target: "patch",
     type: "smoothstep",
     animated: active === "recover",
-    style: { stroke: "#565063", strokeWidth: 1.1, strokeDasharray: "4 5" },
+    style: {
+      stroke: "var(--subtle)",
+      strokeWidth: 1.1,
+      strokeDasharray: "4 5",
+    },
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      color: "#565063",
+      color: "var(--subtle)",
       width: 14,
       height: 14,
     },
@@ -129,7 +133,7 @@ export default function AgentGraph({ run }: { run: Run }) {
       minZoom={0.3}
     >
       <Background
-        color="#353646"
+        color="var(--border)"
         gap={20}
         size={1}
         variant={BackgroundVariant.Dots}
